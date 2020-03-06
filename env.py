@@ -1,11 +1,13 @@
 import numpy as np
 import matplotlib as plt
+import config
 
 direc = [np.array([0, 1]),np.array([0, -1]),np.array([-1, 0]),np.array([1, 0])]
 
 class History:
     def __init__(self):
         pass
+
 
 
 class Environment:
@@ -18,21 +20,25 @@ class Environment:
         '''
         self.num_agents = num_agents
         self.env_size = env_size
-        self.world = np.zeros(env_size)
-        self.goal = np.zeros(env_size)
-        self.agents = []
-        self.goals = []
+        self.world = np.random.choice(2, env_size, p=[0.85, 0.15])
+
+        self.goals = np.empty((num_agents, 2))
         for i in range(num_agents):
+            pos = np.random.randint(0, 10, 2)
+            while self.world[tuple(pos)] == 1:
+                pos = np.random.randint(0, 10, 2)
 
-            # agent init position
-            x, y = np.random.randint(env_size[0]), np.random.randint(env_size[1])
-            self.agents.append(np.array([x, y]))
-            self.world[x, y] = i+1
+            self.goals[i] = pos
 
-            # agent goal position
-            x, y = np.random.randint(env_size[0]), np.random.randint(env_size[1])
-            self.goals.append(np.array([x, y]))
-            self.goal[x, y] = i+1
+        self.agents = np.empty((num_agents, 2))
+        for i in range(num_agents):
+            pos = np.random.randint(0, 10, 2)
+            while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents[:i]):
+                pos = np.random.randint(0, 10, 2)
+
+            self.agents[i] = pos
+
+
         
     def step(self, actions: list):
         '''
@@ -82,13 +88,13 @@ class Environment:
         2nd layer: goal position
         3rd layer: environment
         '''
-        assert agent_id >= 1 and agent_id <= self.num_agents, 'agent id out of range'
+        assert agent_id >= 0 and agent_id < self.num_agents, 'agent id out of range'
 
         obs = np.zeros((3,10,10))
 
-        obs[0,:,:] = self.world==agent_id
-        obs[1,self.goals[agent_id-1]] == 1
-        obs[0,:,:] = self.world==-1
+        obs[0,:,:][tuple(self.agents[agent_id])] = 1
+        obs[1,:,:][tuple(self.goals[agent_id])] = 1
+        obs[2,:,:] = np.copy(self.world)
 
         return obs
     
@@ -101,3 +107,5 @@ class Environment:
 
 
 
+if __name__ == '__main__':
+    Environment(config.env_size, config.num_agents)
