@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib as plt
 import config
 
-direc = [np.array([0, 1]),np.array([0, -1]),np.array([-1, 0]),np.array([1, 0])]
+action_direc = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]])
 
 class History:
     def __init__(self):
@@ -11,7 +11,7 @@ class History:
 
 
 class Environment:
-    def __init__(self, env_size, num_agents):
+    def __init__(self, env_size=config.env_size, num_agents=config.num_agents):
         '''
         self.world:
             0 = empty
@@ -20,7 +20,7 @@ class Environment:
         '''
         self.num_agents = num_agents
         self.env_size = env_size
-        self.world = np.random.choice(2, env_size, p=[0.85, 0.15])
+        self.world = np.random.choice(2, env_size, p=[1-config.obstacle_density, config.obstacle_density])
 
         self.goals = np.empty((num_agents, 2))
         for i in range(num_agents):
@@ -30,13 +30,15 @@ class Environment:
 
             self.goals[i] = pos
 
-        self.agents = np.empty((num_agents, 2))
+        self.agents_pos = np.empty((num_agents, 2))
         for i in range(num_agents):
             pos = np.random.randint(0, 10, 2)
-            while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents[:i]):
+            while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents_pos[:i]):
                 pos = np.random.randint(0, 10, 2)
 
-            self.agents[i] = pos
+            self.agents_pos[i] = pos
+        
+        self.num_steps = 0
 
 
         
@@ -49,36 +51,47 @@ class Environment:
                 2 down
                 3 left
                 4 right
-
-        rewards:
-            stay: -0.2
-            collusion: -1
-            out of bound: -1
-
         '''
 
         assert len(actions) == self.num_agents, 'actions number'
 
-        returns = []
-        temp_pos = []
+        rewards = [None for _ in range(self.num_agents)]
+        next_pos = np.empty((self.num_agents, 2))
 
         for i, action_idx in enumerate(actions):
-            if action_idx == 0:
-                returns.append(-0.1)
-                continue
+            next_pos[i] = self.agents_pos[i] + action_direc[action_idx]
 
-            new_pos = self.agents[i] + direc[action_idx-1]
 
-            if new_pos[0] < 0 or new_pos[0] >= self.env_size[0] or new_pos[1] < 0 or new_pos[1] >= self.env_size[1]:
-                # out of bound
-                returns.append(-1)
-                continue
+        agent_list = [i for i in range(self.num_agents)]
+        # out of region
+        for agent_id in agent_list.copy():
+            if np.any(next_pos[agent_id]<np.array([0,0])) or np.any(next_pos[agent_id]>=np.asarray(self.env_size)):
+                next_pos[agent_id] = np.copy(self.world[agent_id])
+                rewards[agent_id] = config.collision_reward
+                agent_list.remove(agent_id)
 
-            if self.world[new_pos] == -1:
-                returns.append(-1)
-                continue
 
-            temp_pos.append(new_pos)
+        # collide obstacle
+        for agent_id in agent_list.copy():
+            if self.world[tuple(next_pos[agent_id])] == 1:
+                next_pos[agent_id] = np.copy(self.world[agent_id])
+                rewards[agent_id] = config.collision_reward
+                agent_list.remove(agent_id)
+
+        
+        # collide agent 
+        # for agent_id in agent_list.copy():
+        #     if self.world[tuple(next_pos[agent_id])] == 1:
+        #         agent_pos = np.copy(self.world[agent_id])
+        #         rewards[agent_id] = config.collision_reward
+        #     else:
+        #         agent_list.append(agent_id)
+
+
+
+
+
+        
 
 
     def observe(self, agent_id):
@@ -92,7 +105,7 @@ class Environment:
 
         obs = np.zeros((3,10,10))
 
-        obs[0,:,:][tuple(self.agents[agent_id])] = 1
+        obs[0,:,:][tuple(self.agents_pos[agent_id])] = 1
         obs[1,:,:][tuple(self.goals[agent_id])] = 1
         obs[2,:,:] = np.copy(self.world)
 
@@ -108,4 +121,7 @@ class Environment:
 
 
 if __name__ == '__main__':
-    Environment(config.env_size, config.num_agents)
+    # Environment(config.env_size, config.num_agents)
+    a = np.array([[1,3],[3,4]])
+    b = np.array([1,2])
+    print(a==b)
