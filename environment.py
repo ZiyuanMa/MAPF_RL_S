@@ -4,27 +4,41 @@ import config
 
 action_list = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]])
 
+
+def observe(environment, agent_pos, goal_pos):
+
+    obs = np.zeros(environment.shape)
+
+    obs[0,:,:][tuple(agent_pos)] = 1
+    obs[1,:,:][tuple(goal_pos)] = 1
+    obs[2,:,:] = np.copy(environment)
+
+    return obs
+
 class History:
     def __init__(self, environment, num_agents, agent_pos, goals_pos):
         self.environment = environment
         self.num_agents = num_agents
         self.goals_pos = goals_pos
         self.agent_pos = agent_pos
+        self.actions = np.array([]).reshape(0,num_agents)
         self.rewards = np.array([]).reshape(0,num_agents)
         self.steps = 0
 
-    def push(self, agent_pos, rewards):
+    def __len__(self):
+
+        return self.steps
+
+    def push(self, agent_pos, actions, rewards):
         self.agent_pos = np.concatenate(self.agent_pos, np.expand_dims(agent_pos, axis=0))
+        self.actions = np.concatenate(self.actions, np.expand_dims(actions, axis=0))
         self.rewards = np.concatenate(self.rewards, np.expand_dims(rewards, axis=0))
         self.steps += 1
-
-    
-
 
 
 
 class Environment:
-    def __init__(self, env_size=config.env_size, num_agents=config.num_agents):
+    def __init__(self, num_agents=config.num_agents, env_size=config.env_size):
         '''
         self.world:
             0 = empty
@@ -33,18 +47,18 @@ class Environment:
         '''
         self.num_agents = num_agents
         self.env_size = env_size
-        self.world = np.random.choice(2, env_size, p=[1-config.obstacle_density, config.obstacle_density])
+        self.world = np.random.choice(2, self.env_size, p=[1-config.obstacle_density, config.obstacle_density])
 
-        self.goals = np.empty((num_agents, 2))
-        for i in range(num_agents):
+        self.goals = np.empty((self.num_agents, 2))
+        for i in range(self.num_agents):
             pos = np.random.randint(0, 10, 2)
             while self.world[tuple(pos)] == 1:
                 pos = np.random.randint(0, 10, 2)
 
             self.goals[i] = pos
 
-        self.agents_pos = np.empty((num_agents, 2))
-        for i in range(num_agents):
+        self.agents_pos = np.empty((self.num_agents, 2))
+        for i in range(self.num_agents):
             pos = np.random.randint(0, 10, 2)
             while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents_pos[:i]):
                 pos = np.random.randint(0, 10, 2)
@@ -55,8 +69,31 @@ class Environment:
 
         self.history = History(np.copy(self.world), num_agents, np.copy(self.agents_pos), np.copy(self.goals))
 
+    def reset(self):
+
+        self.world = np.random.choice(2, self.env_size, p=[1-config.obstacle_density, config.obstacle_density])
+
+        self.goals = np.empty((self.num_agents, 2))
+        for i in range(self.num_agents):
+            pos = np.random.randint(0, 10, 2)
+            while self.world[tuple(pos)] == 1:
+                pos = np.random.randint(0, 10, 2)
+
+            self.goals[i] = pos
+
+        self.agents_pos = np.empty((self.num_agents, 2))
+        for i in range(self.num_agents):
+            pos = np.random.randint(0, 10, 2)
+            while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents_pos[:i]):
+                pos = np.random.randint(0, 10, 2)
+
+            self.agents_pos[i] = pos
         
-    def step(self, actions: list):
+        self.steps = 0
+
+        self.history = History(np.copy(self.world), self.num_agents, np.copy(self.agents_pos), np.copy(self.goals))
+
+    def step(self, actions):
         '''
         actions:
             list of indices
@@ -117,7 +154,7 @@ class Environment:
 
         self.steps += 1
 
-        self.history.push(np.copy(self.agents_pos), np.copy(rewards))
+        self.history.push(np.copy(self.agents_pos), np.copy(actions), np.copy(rewards))
 
         # check done
         done = False
@@ -128,6 +165,19 @@ class Environment:
             done = True
         
         return done
+
+    def get_history(self):
+
+        return self.history
+
+    def joint_observe(self):
+        obs = np.zeros((self.num_agents, 3, 10, 10))
+        for i in range(self.num_agents):
+            obs[i,0,:,:][tuple(self.agents_pos[i])] = 1
+            obs[i,1,:,:][tuple(self.goals[i])] = 1
+            obs[i,2,:,:] = np.copy(self.world)
+
+        return obs
 
     def observe(self, agent_id):
         '''
@@ -157,8 +207,4 @@ class Environment:
 
 if __name__ == '__main__':
     # Environment(config.env_size, config.num_agents)
-    f = np.array([[[1, 2], [3, 4]]])
-    g = np.array([[1, 2], [3, 4]])
 
-    print('Horizontal Append:', np.concatenate((f, np.expand_dims(g, axis=0))))
-    print(f)

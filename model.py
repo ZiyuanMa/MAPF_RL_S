@@ -25,30 +25,34 @@ class Network(nn.Module):
         self.fc_net = nn.Sequential(
             nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
             nn.LeakyReLU(),
+            nn.Dropout(0.1),
             nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
             nn.LeakyReLU(),
+            nn.Dropout(0.1),
             nn.Linear(2*2*config.num_kernels, config.action_space),
         )
     
-    def forward(self, x, mask=None):
+    def forward(self, x, seq_mask=None):
         x = self.conv_net(x)
         x = self.flatten(x)
-        if mask:
-            pass
-        else:
-            x = torch.unsqueeze(x, 1)
+        if seq_mask:
+            assert x.size()[0] == seq_mask.size()[0], 'batch mismatch 1'
+            x = x.view(seq_mask.size()[1], seq_mask.size()[0], 2*2*config.num_kernels)
+            x = self.self_attn(x, src_key_padding_mask=seq_mask) + x
+            x = x.view(seq_mask.size()[0]*seq_mask.size()[1], 2*2*config.num_kernels)
+            x = self.fc_net(x)
+            x = x.view(seq_mask.size()[0], seq_mask.size()[1], config.action_space)
 
-        x = self.self_attn(x) + x
-        if mask:
-            pass
         else:
+            assert x.size()[0] == 1, 'batch mismatch 2'
+            x = torch.unsqueeze(x, 1)
+            x = self.self_attn(x) + x
             x = torch.squeeze(x, 1)
-        x = self.fc_net(x)
+            x = self.fc_net(x)
+
         return x
 
 if __name__ == '__main__':
-    t = torch.rand((4,3, 8, 8))
-    n = Network()
-    
-
-    print(n(t))
+    t = torch.rand(2, 4)
+    # values, indices = torch.argmax(t, 0)
+    print(torch.argmax(t, 1))

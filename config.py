@@ -20,3 +20,12 @@ num_sa_heads = 4
 num_sa_layers = 2
 
 
+# training setting
+greedy_coef = 1
+checkpoint = 1000
+training_eposide = 10
+batch_size = 512
+
+buffer_size = 32768
+
+
