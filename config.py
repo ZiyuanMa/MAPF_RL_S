@@ -16,7 +16,7 @@ max_steps = 100
 
 # model setting
 num_kernels = 64
-num_heads = 4
-self_attn_layer = 2
+num_sa_heads = 4
+num_sa_layers = 2
 
 

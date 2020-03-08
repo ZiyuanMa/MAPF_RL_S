@@ -18,8 +18,8 @@ class Network(nn.Module):
 
         self.flatten = nn.Flatten()
 
-        encoder_layers = nn.TransformerEncoderLayer(d_model=2*2*config.num_kernels, nhead=config.num_heads)
-        self.self_attn = nn.TransformerEncoder(encoder_layers, config.self_attn_layer)
+        self_attn_layers = nn.TransformerEncoderLayer(d_model=2*2*config.num_kernels, nhead=config.num_sa_heads,dim_feedforward=2*2*config.num_kernels)
+        self.self_attn = nn.TransformerEncoder(self_attn_layers, config.num_sa_layers)
 
 
         self.fc_net = nn.Sequential(
@@ -47,7 +47,7 @@ class Network(nn.Module):
         return x
 
 if __name__ == '__main__':
-    t = torch.rand((1,3, 8, 8))
+    t = torch.rand((4,3, 8, 8))
     n = Network()
     
 
