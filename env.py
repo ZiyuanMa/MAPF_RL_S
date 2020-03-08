@@ -2,11 +2,24 @@ import numpy as np
 import matplotlib as plt
 import config
 
-action_direc = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]])
+action_list = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]])
 
 class History:
-    def __init__(self):
-        pass
+    def __init__(self, environment, num_agents, agent_pos, goals_pos):
+        self.environment = environment
+        self.num_agents = num_agents
+        self.goals_pos = goals_pos
+        self.agent_pos = agent_pos
+        self.rewards = np.array([]).reshape(0,num_agents)
+        self.steps = 0
+
+    def push(self, agent_pos, rewards):
+        self.agent_pos = np.concatenate(self.agent_pos, np.expand_dims(agent_pos, axis=0))
+        self.rewards = np.concatenate(self.rewards, np.expand_dims(rewards, axis=0))
+        self.steps += 1
+
+    
+
 
 
 
@@ -38,8 +51,9 @@ class Environment:
 
             self.agents_pos[i] = pos
         
-        self.num_steps = 0
+        self.steps = 0
 
+        self.history = History(np.copy(self.world), num_agents, np.copy(self.agents_pos), np.copy(self.goals))
 
         
     def step(self, actions: list):
@@ -54,13 +68,16 @@ class Environment:
         '''
 
         assert len(actions) == self.num_agents, 'actions number'
+        assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
 
-        rewards = [None for _ in range(self.num_agents)]
-        next_pos = np.empty((self.num_agents, 2))
+        rewards = np.empty(self.num_agents)
+        next_pos = np.copy(self.agents_pos)
+        action_direc = np.empty((self.num_agents, 2))
 
         for i, action_idx in enumerate(actions):
-            next_pos[i] = self.agents_pos[i] + action_direc[action_idx]
+            action_direc[i] = np.copy(action_list[action_idx])
 
+        next_pos += action_direc
 
         agent_list = [i for i in range(self.num_agents)]
         # out of region
@@ -80,19 +97,37 @@ class Environment:
 
         
         # collide agent 
-        # for agent_id in agent_list.copy():
-        #     if self.world[tuple(next_pos[agent_id])] == 1:
-        #         agent_pos = np.copy(self.world[agent_id])
-        #         rewards[agent_id] = config.collision_reward
-        #     else:
-        #         agent_list.append(agent_id)
+        if len(np.unique(next_pos, axis=0)) < self.num_agents:
 
+            recover = []
+            for agent_id in agent_list.copy():
+                if np.count_nonzero(np.all(next_pos==next_pos[agent_id], axis=1)) > 1:
+                    temp = np.squeeze(np.argwhere(np.all(next_pos==next_pos[agent_id], axis=1))).tolist()
+                    temp = [agent_id for agent_id in temp if agent_id in agent_list]
+                    recover.extend(temp)
 
-
-
+            agent_list = [agent_id for agent_id in agent_list if agent_id not in recover]
+            next_pos[recover] = self.world[recover]
+            rewards[recover] = config.collision_reward
 
         
+        assert len(np.unique(next_pos, axis=0)) == 0, 'duplicated pos'
 
+        self.agents_pos = np.copy(next_pos)
+
+        self.steps += 1
+
+        self.history.push(np.copy(self.agents_pos), np.copy(rewards))
+
+        # check done
+        done = False
+        if np.all(self.agents_pos==self.goals):
+            rewards = np.ones(self.num_agents)
+            done = True
+        elif self.steps >= config.max_steps:
+            done = True
+        
+        return done
 
     def observe(self, agent_id):
         '''
@@ -122,6 +157,8 @@ class Environment:
 
 if __name__ == '__main__':
     # Environment(config.env_size, config.num_agents)
-    a = np.array([[1,3],[3,4]])
-    b = np.array([1,2])
-    print(a==b)
+    f = np.array([[[1, 2], [3, 4]]])
+    g = np.array([[1, 2], [3, 4]])
+
+    print('Horizontal Append:', np.concatenate((f, np.expand_dims(g, axis=0))))
+    print(f)
