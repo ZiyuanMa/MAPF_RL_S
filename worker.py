@@ -36,14 +36,15 @@ class Play(mp.Process):
 
                 # observe
                 obs = self.env.joint_observe()
+                obs = torch.from_numpy(obs)
 
                 with torch.no_grad():
                     q_vals = self.network(obs)
 
                 # get results
-                actions = choose_action(q_vals)
+                actions = select_action(q_vals)
                 
-                done = self.env.step(actions, q_vals)
+                done = self.env.step(actions)
 
             history = self.env.get_history()
             self.train_queue.put(history)
@@ -51,7 +52,7 @@ class Play(mp.Process):
             self.env.reset()
 
 
-def choose_action(policy):
+def select_action(policy):
 
     if random.random() < config.greedy_coef:
         # random action
@@ -65,9 +66,9 @@ def choose_action(policy):
 
 
 
-class train(mp.Process):
+class Train(mp.Process):
     def __init__(self, train_queue, train_lock, target_net):
-        super(train, self).__init__()
+        super(Train, self).__init__()
         self.train_queue = train_queue
         self.train_lock = train_lock
 
@@ -76,106 +77,63 @@ class train(mp.Process):
         self.train_net.load_state_dict(target_net.state_dict())
         self.train_net.train()
         self.train_net.to(device)
-        self.optimizer = torch.optim.AdamW(train_net.parameters())
+        self.optimizer = torch.optim.AdamW(self.train_net.parameters())
 
         self.buffer = ReplayBuffer()
 
         self.steps = 0
 
     def run(self):
-        while self.steps < config.training_eposide:
-            update_steps = 0
-            training_lock.set()
-            eposide = config.buffer_size
-            pbar = tqdm(total=eposide)
+        while self.steps < config.training_timesteps//config.checkpoint:
+            receive = 10000
+            self.train_lock.set()
+            pbar = tqdm(total=receive)
+            while receive > 0:
+                history = self.train_queue.get()
+                pbar.update(min(len(history),receive))
+                receive -= len(history)
+                self.buffer.push(history)
 
-
-
-            training_lock.clear()
+            self.train_lock.clear()
             pbar.close()
-
-
-
-# def train(training_queue, training_lock, target_net):
-#     # network for training
-#     training_net = Network()
-#     training_net.load_state_dict(target_net.state_dict())
-#     training_net = training_net.float()
-#     training_net.train()
-#     training_net.to(device)
-
-#     optimizer = torch.optim.AdamW(training_net.parameters())
-
-#     buffer = ReplayBuffer()
-#     while True:
-#         training_lock.set()
-#         eposide = config.buffer_size
-#         pbar = tqdm(total=eposide)
-
-#         while eposide > 0:
-#             data_tuple = training_queue.get()
-#             buffer.push(data_tuple)
-#             eposide -= len(data_tuple[1][0])
-#             pbar.update(len(data_tuple[1][0]))
-
-#         training_lock.clear()
-#         pbar.close()
-
-#         for _ in range(config.optim_steps):
+            for _ in range(3):
             
-#             sample_data = buffer.sample()
-#             loader = DataLoader(sample_data, batch_size=config.mini_batch_size, num_workers=4)
+                sample_data = self.buffer.sample(config.batch_size)
+                loader = DataLoader(sample_data, batch_size=200, num_workers=4)
 
-#             update_network(training_net, optimizer, loader)
-
-#         target_net.load_state_dict(training_net.state_dict())
+                update_network(self.train_net, self.target_net, self.optimizer, loader)
 
 
-# def update_network(training_net, optimizer, loader):
+def update_network(train_net, target_net, optimizer, loader):
 
-#     loss = 0
-#     policy_loss = 0
-#     value_loss = 0
+    loss = 0
 
-#     optimizer.zero_grad()
+    for state, action, reward, post_state, done, num_agents in loader:
+        state = state.to(device)
+        action = action.to(device)
+        reward = reward.to(device)
+        post_state = post_state.to(device)
+        done = done.to(device)
+        num_agents = num_agents.to(device)
 
-#     for prev_state, prev_num, state, action_idx, action_prob, state_value, reward in loader:
+        train_net.eval()
+        with torch.no_grad():
+            selected_action = train_net(post_state, num_agents).argmax(dim=1, keepdim=True)
+            target = reward + config.gamma**config.forward_steps * target_net(post_state, num_agents).gather(1, selected_action) * done
+        
+        train_net.train()
+        q_vals = train_net(state, num_agents)
+        q_val = torch.gather(q_vals, 1, action.unsqueeze(1))
 
-#         prev_state = prev_state.view(-1, 5, 4, 10, 10)
+        with torch.no_grad():
+            target =  q_val + torch.clamp(target-q_val, -1, 1)
 
-#         prev_state = prev_state.to(device)
-#         prev_num = prev_num.to(device)
-#         state = state.to(device)
-#         action_idx = action_idx.to(device)
-#         action_prob = action_prob.to(device)
-#         state_value = state_value.to(device)
-#         reward = reward.to(device)
+        l = ((q_val - target) ** 2).mean()
+        l.backward()
 
-#         training_net.init_lstm(prev_state, prev_num)
+        optimizer.step()
+        optimizer.zero_grad()
 
-#         policy, pred_value = training_net(state)
-#         policy = torch.gather(policy, 1, action_idx.unsqueeze(1))
+        loss += l.item()
 
-#         adv = reward - state_value
-
-#         ratio = policy/action_prob
-
-#         surrogate1 = ratio * adv
-#         surrogate2 = torch.clamp(ratio, 1-config.clip_range , 1+config.clip_range) * adv
-
-#         policy_loss = -torch.min(surrogate1, surrogate2).mean()
-
-#         reward = state_value + (reward - state_value).clamp(min=-config.clip_range, max=config.clip_range)
-#         value_loss = ((reward - pred_value) ** 2).mean()
-
-#         entropy_loss = Categorical(policy).entropy()
-#         entropy_loss = entropy_loss.mean()
-
-#         l = (policy_loss + config.value_coef*value_loss - config.entropy_coef*entropy_loss)
-#         l.backward()
-
-#         optimizer.step()
-
-#         loss += l
-
-#     print('loss: %.4f' % loss)
+    print('loss: %.4f' % loss)

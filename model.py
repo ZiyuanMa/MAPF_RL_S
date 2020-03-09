@@ -14,6 +14,8 @@ class Network(nn.Module):
             nn.LeakyReLU(),
             nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
             nn.LeakyReLU(),
+            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
+            nn.LeakyReLU(),
         )
 
         self.flatten = nn.Flatten()
@@ -44,7 +46,7 @@ class Network(nn.Module):
             x = x.view(seq_mask.size()[0], seq_mask.size()[1], config.action_space)
 
         else:
-            assert x.size()[0] == 1, 'batch mismatch 2'
+
             x = torch.unsqueeze(x, 1)
             x = self.self_attn(x) + x
             x = torch.squeeze(x, 1)
@@ -52,7 +54,9 @@ class Network(nn.Module):
 
         return x
 
-if __name__ == '__main__':
-    t = torch.rand(2, 4)
-    # values, indices = torch.argmax(t, 0)
-    print(torch.argmax(t, 1))
+# if __name__ == '__main__':
+#     t = torch.rand(2, 4)
+#     # values, indices = torch.argmax(t, 0)
+#     print(t)
+#     m = torch.LongTensor([[1],[2]])
+#     print(t.gather(1,m))
