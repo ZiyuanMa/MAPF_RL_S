@@ -7,7 +7,7 @@ action_list = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]], dtype=np.int)
 
 def observe(environment, num_agents, agents_pos, goals_pos):
 
-    obs = np.zeros((4, 3, 10, 10), dtype=np.float32)
+    obs = np.zeros((4, 3, 8, 8), dtype=np.float32)
     for i in range(num_agents):
         obs[i,0,:,:][tuple(agents_pos[i])] = 1
         obs[i,1,:,:][tuple(goals_pos[i])] = 1
@@ -61,17 +61,17 @@ class Environment:
 
         self.goals = np.empty((self.num_agents, 2), dtype=np.int)
         for i in range(self.num_agents):
-            pos = np.random.randint(0, 10, 2)
+            pos = np.random.randint(0, 8, 2)
             while self.world[tuple(pos)] == 1:
-                pos = np.random.randint(0, 10, 2)
+                pos = np.random.randint(0, 8, 2)
 
             self.goals[i] = pos
 
         self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int)
         for i in range(self.num_agents):
-            pos = np.random.randint(0, 10, 2)
+            pos = np.random.randint(0, 8, 2)
             while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents_pos[:i]):
-                pos = np.random.randint(0, 10, 2)
+                pos = np.random.randint(0, 8, 2)
 
             self.agents_pos[i] = pos
         
@@ -85,17 +85,17 @@ class Environment:
 
         self.goals = np.empty((self.num_agents, 2), dtype=np.int)
         for i in range(self.num_agents):
-            pos = np.random.randint(0, 10, 2)
+            pos = np.random.randint(0, 8, 2)
             while self.world[tuple(pos)] == 1:
-                pos = np.random.randint(0, 10, 2)
+                pos = np.random.randint(0, 8, 2)
 
             self.goals[i] = pos
 
         self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int)
         for i in range(self.num_agents):
-            pos = np.random.randint(0, 10, 2)
+            pos = np.random.randint(0, 8, 2)
             while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents_pos[:i]):
-                pos = np.random.randint(0, 10, 2)
+                pos = np.random.randint(0, 8, 2)
 
             self.agents_pos[i] = pos
         
@@ -182,7 +182,7 @@ class Environment:
         return self.history
 
     def joint_observe(self):
-        obs = np.zeros((self.num_agents, 3, 10, 10), dtype=np.float32)
+        obs = np.zeros((self.num_agents, 3, 8, 8), dtype=np.float32)
         for i in range(self.num_agents):
             obs[i,0][tuple(self.agents_pos[i])] = 1
             obs[i,1][tuple(self.goals[i])] = 1
@@ -192,14 +192,14 @@ class Environment:
 
     def observe(self, agent_id):
         '''
-        return shape (3, 10, 10)
+        return shape (3, 8, 8)
         first layer: current position
         2nd layer: goal position
         3rd layer: environment
         '''
         assert agent_id >= 0 and agent_id < self.num_agents, 'agent id out of range'
 
-        obs = np.zeros((3,10,10))
+        obs = np.zeros((3,8,8))
 
         obs[0,:,:][tuple(self.agents_pos[agent_id])] = 1
         obs[1,:,:][tuple(self.goals[agent_id])] = 1

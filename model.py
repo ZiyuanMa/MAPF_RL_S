@@ -14,8 +14,7 @@ class Network(nn.Module):
             nn.LeakyReLU(),
             nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
             nn.LeakyReLU(),
-            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
-            nn.LeakyReLU(),
+
         )
 
         self.flatten = nn.Flatten()
@@ -35,6 +34,9 @@ class Network(nn.Module):
         )
     
     def forward(self, x, seq_mask=None):
+        if len(x.size()) == 5:
+            print(x.size())
+            x = x.view(-1, 3, 8, 8)
         x = self.conv_net(x)
         x = self.flatten(x)
         if seq_mask:

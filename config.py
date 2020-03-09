@@ -1,5 +1,5 @@
 # environment setting
-env_size = (10, 10)
+env_size = (8, 8)
 num_agents = 2
 obstacle_density = 0.15
 action_space = 5
