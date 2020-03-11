@@ -4,11 +4,12 @@ from worker import Play, Train
 from model import Network
 import torch.multiprocessing as mp
 import numpy as np
+import time
 from environment import Environment
 
 
 def drl():
-    l = np.random.randint(1, 4, size=12)
+    l = np.random.randint(1, 4, size=os.cpu_count())
     p_list = []
 
     network = Network()
@@ -26,7 +27,7 @@ def drl():
         master_p.start()
         p_list.append(master_p)
 
-    
+    # time.sleep(40)
     training_p = Train(training_q, training_l, network)
     training_p.start()
     p_list.append(training_p)

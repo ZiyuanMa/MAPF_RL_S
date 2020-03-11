@@ -2,6 +2,7 @@ import config
 from environment import History, observe
 import torch
 from torch.utils.data import Dataset, Subset
+from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 import numba as nb
 
@@ -26,7 +27,7 @@ class ReplayBuffer(Dataset):
 
         state, action, _ = history[step_idx]
 
-        done = np.array([1], dtype=np.float32)
+        done = np.ones(history.num_agents, dtype=np.float32)
         cumu_reward = np.zeros(history.num_agents, dtype=np.float32)
         post_state = np.copy(state)
         for i in range(config.forward_steps):
@@ -34,10 +35,11 @@ class ReplayBuffer(Dataset):
                 post_state, _, reward = history[step_idx+i]
                 cumu_reward += reward
             else:
-                done = np.array([0], dtype=np.float32)
+                if history.done():
+                    done = np.zeros(history.num_agents, dtype=np.float32)
                 break
-        
-        return state, action, cumu_reward, post_state, done, history.num_agents
+        mask = np.ones(history.num_agents, dtype=np.bool)
+        return torch.from_numpy(state), torch.from_numpy(action), torch.from_numpy(cumu_reward), torch.from_numpy(post_state), torch.from_numpy(done), torch.from_numpy(mask)
 
 
     def __len__(self):
@@ -53,7 +55,7 @@ class ReplayBuffer(Dataset):
 
         # push
         self.history_list.append(history)
-        self.size += history.num_agents
+        self.size += len(history)
 
     def clear(self):
         self.size = 0
@@ -61,7 +63,27 @@ class ReplayBuffer(Dataset):
 
 
     def sample(self, sample_size):
+        if len(self) < sample_size:
+            return None
         indices = np.random.randint(self.size, size=sample_size)
 
         return Subset(self, indices)
 
+
+def pad_collate(batch):
+
+    # batch.sort(key= lambda x: x[2], reverse=True)
+    (state, action, cumu_reward, post_state, done, num_agents) = zip(*batch)
+    state = pad_sequence(state, batch_first=True)
+    action = pad_sequence(action, batch_first=True)
+    cumu_reward = pad_sequence(cumu_reward, batch_first=True)
+    post_state = pad_sequence(post_state, batch_first=True)
+    done = pad_sequence(done, batch_first=True)
+    num_agents = pad_sequence(num_agents, batch_first=True)
+
+    return state, action, cumu_reward, post_state, done, num_agents
+
+if __name__ == '__main__':
+    a = [torch.zeros((2,4,4)), torch.zeros((3,4,4))]
+    b = pad_sequence(a, batch_first=True)
+    print(b.shape)

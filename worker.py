@@ -1,5 +1,5 @@
 from environment import Environment
-from buffer import ReplayBuffer
+from buffer import ReplayBuffer, pad_collate
 from model import Network
 import config
 import numpy as np
@@ -10,7 +10,7 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 import torch.multiprocessing as mp 
 from tqdm import tqdm
 import random
-
+import time
 
 class Play(mp.Process):
 
@@ -32,7 +32,7 @@ class Play(mp.Process):
             done = False
             # start one eposide
             while not done:
-                self.train_lock.wait()
+                # self.train_lock.wait()
 
                 # observe
                 obs = self.env.joint_observe()
@@ -85,24 +85,31 @@ class Train(mp.Process):
 
     def run(self):
         while self.steps < config.training_timesteps//config.checkpoint:
-            receive = 10000
-            self.train_lock.set()
-            pbar = tqdm(total=receive)
-            while receive > 0:
+            # receive = 300000
+            # self.train_lock.set()
+            # pbar = tqdm(total=receive)
+            count = 0
+            while not self.train_queue.empty():
                 history = self.train_queue.get()
-                pbar.update(min(len(history),receive))
-                receive -= len(history)
+                # pbar.update(min(len(history),receive))
+                # receive -= len(history)
+                count += len(history)
                 self.buffer.push(history)
+            print('push: '+str(count))
+            if count == 0:
+                time.sleep(1)
 
-            self.train_lock.clear()
-            pbar.close()
-            for _ in range(3):
+            # self.train_lock.clear()
+            # pbar.close()
             
-                sample_data = self.buffer.sample(config.batch_size)
-                loader = DataLoader(sample_data, batch_size=200, num_workers=4)
-
-                update_network(self.train_net, self.target_net, self.optimizer, loader)
-
+            sample_data = self.buffer.sample(config.batch_size)
+            if sample_data is None:
+                continue
+            
+            loader = DataLoader(sample_data, batch_size=256, num_workers=4, collate_fn=pad_collate)
+            print('udpate')
+            update_network(self.train_net, self.target_net, self.optimizer, loader)
+            self.steps += 1
 
 def update_network(train_net, target_net, optimizer, loader):
 
@@ -118,12 +125,16 @@ def update_network(train_net, target_net, optimizer, loader):
 
         train_net.eval()
         with torch.no_grad():
-            selected_action = train_net(post_state, num_agents).argmax(dim=1, keepdim=True)
-            target = reward + config.gamma**config.forward_steps * target_net(post_state, num_agents).gather(1, selected_action) * done
+            selected_action = train_net(post_state, num_agents).argmax(dim=2, keepdim=True)
+            # t = target_net(post_state, num_agents).gather(2, selected_action)
+            # done = done.unsqueeze(2)
+            # print(done.shape)
+            # print(t.shape)
+            target = reward + config.gamma**config.forward_steps * torch.squeeze(target_net(post_state, num_agents).gather(2, selected_action)) * done
         
         train_net.train()
         q_vals = train_net(state, num_agents)
-        q_val = torch.gather(q_vals, 1, action.unsqueeze(1))
+        q_val = torch.squeeze(torch.gather(q_vals, 2, action.unsqueeze(2)))
 
         with torch.no_grad():
             target =  q_val + torch.clamp(target-q_val, -1, 1)

@@ -35,18 +35,17 @@ class Network(nn.Module):
     
     def forward(self, x, seq_mask=None):
         if len(x.size()) == 5:
-            print(x.size())
             x = x.view(-1, 3, 8, 8)
         x = self.conv_net(x)
         x = self.flatten(x)
-        if seq_mask:
-            assert x.size()[0] == seq_mask.size()[0], 'batch mismatch 1'
+        if seq_mask is not None:
+            # assert x.size()[0] == seq_mask.size()[0], 'batch mismatch 1'
             x = x.view(seq_mask.size()[1], seq_mask.size()[0], 2*2*config.num_kernels)
             x = self.self_attn(x, src_key_padding_mask=seq_mask) + x
             x = x.view(seq_mask.size()[0]*seq_mask.size()[1], 2*2*config.num_kernels)
             x = self.fc_net(x)
             x = x.view(seq_mask.size()[0], seq_mask.size()[1], config.action_space)
-
+            # print(x.shape)
         else:
 
             x = torch.unsqueeze(x, 1)

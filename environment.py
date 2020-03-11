@@ -7,7 +7,7 @@ action_list = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]], dtype=np.int)
 
 def observe(environment, num_agents, agents_pos, goals_pos):
 
-    obs = np.zeros((4, 3, 8, 8), dtype=np.float32)
+    obs = np.zeros((num_agents, 3, 8, 8), dtype=np.float32)
     for i in range(num_agents):
         obs[i,0,:,:][tuple(agents_pos[i])] = 1
         obs[i,1,:,:][tuple(goals_pos[i])] = 1
@@ -45,10 +45,16 @@ class History:
         self.rewards = np.concatenate((self.rewards, np.expand_dims(rewards, axis=0)))
         self.steps += 1
 
+    def done(self):
+        if np.all(self.agents_pos[-1,:,:] == self.goals_pos):
+            return True
+        else:
+            return False
+
 
 
 class Environment:
-    def __init__(self, num_agents=config.num_agents, env_size=config.env_size):
+    def __init__(self, num_agents, env_size=config.env_size):
         '''
         self.world:
             0 = empty
@@ -213,5 +219,6 @@ class Environment:
 
 if __name__ == '__main__':
 
-    t = np.array([[1,2],[4,3],[1,2]])
-    print(np.argwhere(np.all(t==np.array([1,2]), axis=1)))
+    a = np.array([1,2])
+    b = np.array([3,4])
+    print(np.concatenate((a,b)))
