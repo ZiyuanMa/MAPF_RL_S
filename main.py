@@ -9,7 +9,7 @@ from environment import Environment
 
 
 def drl():
-    l = np.random.randint(1, 4, size=os.cpu_count())
+    l = np.random.randint(1, 5, size=os.cpu_count())
     p_list = []
 
     network = Network()

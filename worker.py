@@ -115,26 +115,26 @@ def update_network(train_net, target_net, optimizer, loader):
 
     loss = 0
 
-    for state, action, reward, post_state, done, num_agents in loader:
+    for state, action, reward, post_state, done, mask in loader:
         state = state.to(device)
         action = action.to(device)
         reward = reward.to(device)
         post_state = post_state.to(device)
         done = done.to(device)
-        num_agents = num_agents.to(device)
+        mask = mask.to(device)
 
         train_net.eval()
         with torch.no_grad():
-            selected_action = train_net(post_state, num_agents).argmax(dim=2, keepdim=True)
+            selected_action = train_net(post_state, mask).argmax(dim=2, keepdim=True)
             # t = target_net(post_state, num_agents).gather(2, selected_action)
             # done = done.unsqueeze(2)
             # print(done.shape)
             # print(t.shape)
-            target = reward + config.gamma**config.forward_steps * torch.squeeze(target_net(post_state, num_agents).gather(2, selected_action)) * done
+            target = (reward + config.gamma**config.forward_steps * torch.squeeze(target_net(post_state, mask).gather(2, selected_action)) * done) * mask
         
         train_net.train()
-        q_vals = train_net(state, num_agents)
-        q_val = torch.squeeze(torch.gather(q_vals, 2, action.unsqueeze(2)))
+        q_vals = train_net(state, mask)
+        q_val = torch.squeeze(torch.gather(q_vals, 2, action.unsqueeze(2))) * mask
 
         with torch.no_grad():
             target =  q_val + torch.clamp(target-q_val, -1, 1)

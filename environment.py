@@ -22,7 +22,7 @@ class History:
         self.goals_pos = goals_pos
         self.agents_pos = np.expand_dims(agents_pos, axis=0)
         self.actions = np.array([], dtype=np.int).reshape(0,num_agents)
-        self.rewards = np.array([], dtype=np.int).reshape(0,num_agents)
+        self.rewards = np.array([], dtype=np.float32).reshape(0,num_agents)
         self.steps = 0
 
     # @property
@@ -123,7 +123,7 @@ class Environment:
         assert len(actions) == self.num_agents, 'actions number'
         assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
 
-        rewards = np.empty(self.num_agents)
+        rewards = np.empty(self.num_agents, dtype=np.float32)
         next_pos = np.copy(self.agents_pos)
 
         action_direc = np.empty((self.num_agents, 2), dtype=np.int)
