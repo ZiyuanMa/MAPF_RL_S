@@ -29,12 +29,15 @@ def drl():
         master_p.start()
         p_list.append(master_p)
 
-    # time.sleep(40)
+
     training_p = Train(training_q, training_l, network)
     training_p.start()
-    p_list.append(training_p)
+
+    training_p.join()
+    # p_list.append(training_p)
 
     for p in p_list:
+        p.terminate()
         p.join()
 
 

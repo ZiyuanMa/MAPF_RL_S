@@ -100,11 +100,12 @@ class Train(mp.Process):
             # pbar = tqdm(total=receive)
             count = 0
             while not self.train_queue.empty():
-                history = self.train_queue.get()
+                history = self.train_queue.get_nowait()
                 # pbar.update(min(len(history),receive))
                 # receive -= len(history)
                 count += len(history)
                 self.buffer.push(history)
+                # time.sleep(0.0001)
             print('push: '+str(count))
             if count == 0:
                 time.sleep(1)
@@ -116,11 +117,13 @@ class Train(mp.Process):
             if sample_data is None:
                 continue
             
-            loader = DataLoader(sample_data, batch_size=200, num_workers=4, collate_fn=pad_collate)
+            loader = DataLoader(sample_data, batch_size=config.mini_batch_size, num_workers=4, collate_fn=pad_collate)
             print('udpate '+str(self.steps+1))
             update_network(self.train_net, self.global_net, self.optimizer, loader)
 
             self.global_net.load_state_dict(self.train_net.state_dict())
+
+            print('finish udpate '+str(self.steps+1))
             self.steps += 1
             config.greedy_coef *= 0.997
             if self.steps % config.checkpoint == 0:
@@ -165,5 +168,5 @@ def update_network(train_net, target_net, optimizer, loader):
         optimizer.zero_grad()
 
         loss += l.item()
-
+    loss /= config.batch_size // config.mini_batch_size
     print('loss: %.4f' % loss)
