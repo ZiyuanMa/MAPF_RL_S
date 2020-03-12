@@ -82,6 +82,7 @@ class Train(mp.Process):
         self.train_lock = train_lock
 
         self.global_net = global_net
+        self.global_net.eval()
         self.global_net.to(device)
         self.train_net = Network()
         self.train_net.load_state_dict(self.global_net.state_dict())
@@ -123,9 +124,12 @@ class Train(mp.Process):
 
             self.global_net.load_state_dict(self.train_net.state_dict())
 
+            if self.global_net.training:
+                raise RuntimeError('train')
+
             print('finish udpate '+str(self.steps+1))
             self.steps += 1
-            config.greedy_coef *= 0.997
+            config.greedy_coef *= 0.998
             if self.steps % config.checkpoint == 0:
 
                 torch.save(self.global_net.state_dict(), './model'+str(self.steps//config.checkpoint)+'.pth')
@@ -144,24 +148,29 @@ def update_network(train_net, target_net, optimizer, loader):
 
         train_net.eval()
         with torch.no_grad():
+
             selected_action = train_net(post_state, mask).argmax(dim=2, keepdim=True)
-            # t = target_net(post_state, num_agents).gather(2, selected_action)
+            # print(selected_action.shape)
+            # t = torch.squeeze(target_net(post_state, mask).gather(2, selected_action))
+            # print(reward.shape)
             # done = done.unsqueeze(2)
             # print(done.shape)
-            # print(t.shape)
-            target = (reward + config.gamma**config.forward_steps * torch.squeeze(target_net(post_state, mask).gather(2, selected_action)) * done)
+            # print(done.shape)
+
+            target = reward + config.gamma**config.forward_steps * torch.squeeze(target_net(post_state, mask).gather(2, selected_action), dim=2) * done
+            # print(target.shape)
             target = torch.masked_select(target, mask==False)
         
         train_net.train()
         q_vals = train_net(state, mask)
-        q_val = torch.squeeze(torch.gather(q_vals, 2, action.unsqueeze(2)))
+        q_val = torch.squeeze(torch.gather(q_vals, 2, action.unsqueeze(2)), dim=2)
         q_val = torch.masked_select(q_val, mask==False)
 
         # clip
-        with torch.no_grad():
-            target =  q_val + torch.clamp(target-q_val, -1, 1)
+        # with torch.no_grad():
+        #     target =  q_val + torch.clamp(target-q_val, -1, 1)
 
-        l = ((q_val - target) ** 2).mean()
+        l = ((target - q_val) ** 2).mean()
         l.backward()
 
         optimizer.step()

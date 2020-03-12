@@ -1,14 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
+from numba import jit
 import config
 
 action_list = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]], dtype=np.int8)
 
-
+# @jit(nopython=True)
 def observe(environment, num_agents, agents_pos, goals_pos):
 
-    obs = np.zeros((num_agents, 3, 8, 8), dtype=np.float32)
+    obs = np.zeros((num_agents, 3, *config.env_size), dtype=np.float32)
+    # agent_id = np.arange(num_agents, dtype=np.int8)
+    # obs[agent_id, 0, agents_pos[:,0], agents_pos[:,1]] = 1
+    # obs[agent_id, 1, goals_pos[:,0], goals_pos[:,1]] = 1
+    # obs[agent_id, 2, :, :] = np.copy(environment)
     for i in range(num_agents):
         obs[i,0,:,:][tuple(agents_pos[i])] = 1
         obs[i,1,:,:][tuple(goals_pos[i])] = 1
@@ -37,7 +42,7 @@ class History:
     def __getitem__(self, index):
 
         assert index < self.steps, 'step index out of history length'
-
+        # print(self.rewards[index])
         return observe(self.environment, self.num_agents, self.agents_pos[index], self.goals_pos), np.copy(self.actions[index]), np.copy(self.rewards[index])
 
     def push(self, agents_pos, actions, rewards):
@@ -48,6 +53,7 @@ class History:
 
     def done(self):
         if np.all(self.agents_pos[-1,:,:] == self.goals_pos):
+
             return True
         else:
             return False
@@ -120,16 +126,23 @@ class Environment:
                 4 right
         '''
 
-        assert len(actions) == self.num_agents, 'actions number'
-        assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
+        # assert len(actions) == self.num_agents, 'actions number'
+        # assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
 
         rewards = np.empty(self.num_agents, dtype=np.float32)
         next_pos = np.copy(self.agents_pos)
 
         action_direc = np.empty((self.num_agents, 2), dtype=np.int8)
 
-        for i, action_idx in enumerate(actions):
-            action_direc[i] = np.copy(action_list[action_idx])
+        for agent_id, action_idx in enumerate(actions):
+            action_direc[agent_id] = np.copy(action_list[action_idx])
+            if action_idx == 0:
+                if np.array_equal(self.agents_pos[agent_id], self.goals[agent_id]):
+                    rewards[agent_id] = config.stay_on_goal_reward
+                else:
+                    rewards[agent_id] = config.stay_off_goal_reward
+            else:
+                rewards[agent_id] = config.move_reward
 
         next_pos += action_direc
 
@@ -153,7 +166,6 @@ class Environment:
         # collide agent 
         while len(np.unique(next_pos, axis=0)) < self.num_agents:
 
-            recover = []
             pos, count = np.unique(next_pos, axis=0, return_counts=True)
             for p, c in zip(pos, count):
                 if c > 1:
@@ -165,21 +177,21 @@ class Environment:
             # next_pos[recover] = self.agents_pos[recover]
             # rewards[recover] = config.collision_reward
 
-        assert len(np.unique(next_pos, axis=0)) == self.num_agents, 'duplicated pos '+str(next_pos)+ ' with ' + str(self.agents_pos) + ' and '+str(recover)
+        # assert len(np.unique(next_pos, axis=0)) == self.num_agents, 'duplicated pos '+str(next_pos)+ ' with ' + str(self.agents_pos) + ' and '+str(recover)
 
         self.agents_pos = np.copy(next_pos)
 
         self.steps += 1
 
-        self.history.push(np.copy(self.agents_pos), np.copy(actions), np.copy(rewards))
-
         # check done
         done = False
         if np.all(self.agents_pos==self.goals):
-            rewards = np.ones(self.num_agents)
+            rewards = np.ones(self.num_agents) * config.finish_reward
             done = True
         elif self.steps >= config.max_steps:
             done = True
+
+        self.history.push(np.copy(self.agents_pos), np.copy(actions), np.copy(rewards))
         
         return done
 
@@ -231,9 +243,10 @@ class Environment:
 
 
 if __name__ == '__main__':
-    map = np.array(['r','g','b'], dtype='|S1')
-    plt.imshow(map)
-    plt.show()
-    e = Environment(3)
-    e.render()
 
+    pos = np.array([[1,2],[2,1],[3,4]])
+    x = np.array([1,2,3])
+    y = np.array([2,1,4])
+    map = np.zeros((3,5,5))
+    map[0,x,y] = 1
+    print(map[0,:,:])

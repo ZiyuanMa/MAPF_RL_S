@@ -12,6 +12,7 @@ from environment import Environment
 
 def drl():
     l = np.random.randint(1, 5, size=os.cpu_count())
+    l = np.ones(os.cpu_count(), dtype=np.int)
     p_list = []
 
     network = Network()

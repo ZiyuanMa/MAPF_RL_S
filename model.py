@@ -8,6 +8,7 @@ class Network(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv_net = nn.Sequential(
+            # nn.BatchNorm2d(3),
             nn.Conv2d(config.obs_dimension, config.num_kernels, 3, 1),
             nn.LeakyReLU(),
             nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
@@ -41,15 +42,17 @@ class Network(nn.Module):
         if seq_mask is not None:
             # assert x.size()[0] == seq_mask.size()[0], 'batch mismatch 1'
             x = x.view(seq_mask.size()[1], seq_mask.size()[0], 2*2*config.num_kernels)
-            x = self.self_attn(x, src_key_padding_mask=seq_mask) + x
+            # x = self.self_attn(x, src_key_padding_mask =seq_mask)
+
             x = x.view(seq_mask.size()[0]*seq_mask.size()[1], 2*2*config.num_kernels)
             x = self.fc_net(x)
             x = x.view(seq_mask.size()[0], seq_mask.size()[1], config.action_space)
+            # print(x)
             # print(x.shape)
         else:
 
             x = torch.unsqueeze(x, 1)
-            x = self.self_attn(x) + x
+            # x = self.self_attn(x)
             x = torch.squeeze(x, 1)
             x = self.fc_net(x)
 

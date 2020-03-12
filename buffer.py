@@ -33,7 +33,7 @@ class ReplayBuffer(Dataset):
         for i in range(config.forward_steps):
             if step_idx + i < len(history):
                 post_state, _, reward = history[step_idx+i]
-                cumu_reward += reward
+                cumu_reward += reward * config.gamma ** i
             else:
                 if history.done():
                     done = np.zeros(history.num_agents, dtype=np.float32)
