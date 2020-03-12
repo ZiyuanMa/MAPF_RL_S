@@ -56,7 +56,7 @@ class Play(mp.Process):
 
             step += 1
             if step == config.update_steps:
-                self.eval_net.load_state_dict(global_net.state_dict())
+                self.eval_net.load_state_dict(self.global_net.state_dict())
                 step = 0
 
 
@@ -115,14 +115,16 @@ class Train(mp.Process):
             if sample_data is None:
                 continue
             
-            loader = DataLoader(sample_data, batch_size=256, num_workers=4, collate_fn=pad_collate)
-            print('udpate')
+            loader = DataLoader(sample_data, batch_size=200, num_workers=4, collate_fn=pad_collate)
+            print('udpate '+str(self.steps+1))
             update_network(self.train_net, self.global_net, self.optimizer, loader)
 
             self.global_net.load_state_dict(self.train_net.state_dict())
             self.steps += 1
+            config.greedy_coef *= 0.997
             if self.steps % config.checkpoint == 0:
-                torch.save(self.global_net.state_dict(), './model.pth')
+
+                torch.save(self.global_net.state_dict(), './model'+str(self.steps//config.checkpoint)+'.pth')
 
 def update_network(train_net, target_net, optimizer, loader):
 

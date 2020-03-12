@@ -1,5 +1,6 @@
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
+from matplotlib import colors
 import config
 
 action_list = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]], dtype=np.int)
@@ -214,11 +215,26 @@ class Environment:
         return obs
     
     def render(self):
+        map = np.copy(self.world)
+        for agent_id in range(self.num_agents):
+            if np.array_equal(self.agents_pos[agent_id], self.goals[agent_id]):
+                map[tuple(self.agents_pos[agent_id])] = 4
+            else:
+                map[tuple(self.agents_pos[agent_id])] = 2
+                map[tuple(self.goals[agent_id])] = 3
 
-        pass
+        cmap = colors.ListedColormap(['white','grey','lime','purple','gold'])
+        plt.imshow(map, cmap=cmap)
+        plt.xlabel(str(self.steps))
+        plt.ion()
+        plt.show()
+        plt.pause(1)
+
 
 if __name__ == '__main__':
+    map = np.array(['r','g','b'], dtype='|S1')
+    plt.imshow(map)
+    plt.show()
+    e = Environment(3)
+    e.render()
 
-    a = np.array([1,2])
-    b = np.array([3,4])
-    print(np.concatenate((a,b)))
