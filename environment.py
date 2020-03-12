@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 import config
 
-action_list = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]], dtype=np.int)
+action_list = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]], dtype=np.int8)
 
 
 def observe(environment, num_agents, agents_pos, goals_pos):
@@ -59,26 +59,25 @@ class Environment:
         '''
         self.world:
             0 = empty
-            positive = agent with its corresponding id
-            -1 = stuff
+            1 = obstacle
         '''
         self.num_agents = num_agents
         self.env_size = env_size
         self.world = np.random.choice(2, self.env_size, p=[1-config.obstacle_density, config.obstacle_density]).astype(np.float32)
 
-        self.goals = np.empty((self.num_agents, 2), dtype=np.int)
+        self.goals = np.empty((self.num_agents, 2), dtype=np.int8)
         for i in range(self.num_agents):
-            pos = np.random.randint(0, 8, 2)
+            pos = np.random.randint(0, 8, 2, dtype=np.int8)
             while self.world[tuple(pos)] == 1:
-                pos = np.random.randint(0, 8, 2)
+                pos = np.random.randint(0, 8, 2, dtype=np.int8)
 
             self.goals[i] = pos
 
-        self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int)
+        self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int8)
         for i in range(self.num_agents):
-            pos = np.random.randint(0, 8, 2)
+            pos = np.random.randint(0, 8, 2, dtype=np.int8)
             while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents_pos[:i]):
-                pos = np.random.randint(0, 8, 2)
+                pos = np.random.randint(0, 8, 2, dtype=np.int8)
 
             self.agents_pos[i] = pos
         
@@ -90,19 +89,19 @@ class Environment:
 
         self.world = np.random.choice(2, self.env_size, p=[1-config.obstacle_density, config.obstacle_density]).astype(np.float32)
 
-        self.goals = np.empty((self.num_agents, 2), dtype=np.int)
+        self.goals = np.empty((self.num_agents, 2), dtype=np.int8)
         for i in range(self.num_agents):
-            pos = np.random.randint(0, 8, 2)
+            pos = np.random.randint(0, 8, 2, dtype=np.int8)
             while self.world[tuple(pos)] == 1:
-                pos = np.random.randint(0, 8, 2)
+                pos = np.random.randint(0, 8, 2, dtype=np.int8)
 
             self.goals[i] = pos
 
-        self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int)
+        self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int8)
         for i in range(self.num_agents):
-            pos = np.random.randint(0, 8, 2)
+            pos = np.random.randint(0, 8, 2, dtype=np.int8)
             while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents_pos[:i]):
-                pos = np.random.randint(0, 8, 2)
+                pos = np.random.randint(0, 8, 2, dtype=np.int8)
 
             self.agents_pos[i] = pos
         
@@ -127,7 +126,7 @@ class Environment:
         rewards = np.empty(self.num_agents, dtype=np.float32)
         next_pos = np.copy(self.agents_pos)
 
-        action_direc = np.empty((self.num_agents, 2), dtype=np.int)
+        action_direc = np.empty((self.num_agents, 2), dtype=np.int8)
 
         for i, action_idx in enumerate(actions):
             action_direc[i] = np.copy(action_list[action_idx])

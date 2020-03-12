@@ -46,7 +46,7 @@ class Play(mp.Process):
 
                 # get results
                 actions = select_action(q_vals)
-                
+
                 done = self.env.step(actions)
 
             history = self.env.get_history()
@@ -68,6 +68,7 @@ def select_action(policy):
 
     else:
         # greedy action
+
         return torch.argmax(policy, 1).numpy()
             
 
