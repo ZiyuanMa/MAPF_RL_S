@@ -38,7 +38,7 @@ class ReplayBuffer(Dataset):
                 if history.done():
                     done = np.zeros(history.num_agents, dtype=np.float32)
                 break
-        mask = np.ones(history.num_agents, dtype=np.bool)
+        mask = np.zeros(history.num_agents, dtype=np.bool)
         return torch.from_numpy(state), torch.from_numpy(action), torch.from_numpy(cumu_reward), torch.from_numpy(post_state), torch.from_numpy(done), torch.from_numpy(mask)
 
 
@@ -73,15 +73,15 @@ class ReplayBuffer(Dataset):
 def pad_collate(batch):
 
     # batch.sort(key= lambda x: x[2], reverse=True)
-    (state, action, cumu_reward, post_state, done, num_agents) = zip(*batch)
+    (state, action, cumu_reward, post_state, done, mask) = zip(*batch)
     state = pad_sequence(state, batch_first=True)
     action = pad_sequence(action, batch_first=True)
     cumu_reward = pad_sequence(cumu_reward, batch_first=True)
     post_state = pad_sequence(post_state, batch_first=True)
     done = pad_sequence(done, batch_first=True)
-    num_agents = pad_sequence(num_agents, batch_first=True)
+    mask = pad_sequence(mask, batch_first=True, padding_value=1)
 
-    return state, action, cumu_reward, post_state, done, num_agents
+    return state, action, cumu_reward, post_state, done, mask
 
 if __name__ == '__main__':
     a = [torch.zeros((2,4,4)), torch.zeros((3,4,4))]
