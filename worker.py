@@ -159,12 +159,12 @@ def update_network(train_net, target_net, optimizer, loader):
 
             target = reward + config.gamma**config.forward_steps * torch.squeeze(target_net(post_state, mask).gather(2, selected_action), dim=2) * done
             # print(target.shape)
-            target = torch.masked_select(target, mask==False)
+            # target = torch.masked_select(target, mask==False)
         
         train_net.train()
         q_vals = train_net(state, mask)
         q_val = torch.squeeze(torch.gather(q_vals, 2, action.unsqueeze(2)), dim=2)
-        q_val = torch.masked_select(q_val, mask==False)
+        # q_val = torch.masked_select(q_val, mask==False)
 
         # clip
         # with torch.no_grad():

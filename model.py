@@ -42,7 +42,7 @@ class Network(nn.Module):
         if seq_mask is not None:
             # assert x.size()[0] == seq_mask.size()[0], 'batch mismatch 1'
             x = x.view(seq_mask.size()[1], seq_mask.size()[0], 2*2*config.num_kernels)
-            # x = self.self_attn(x, src_key_padding_mask =seq_mask)
+            x = self.self_attn(x)
 
             x = x.view(seq_mask.size()[0]*seq_mask.size()[1], 2*2*config.num_kernels)
             x = self.fc_net(x)
