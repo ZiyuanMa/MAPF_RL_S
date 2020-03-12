@@ -14,19 +14,22 @@ import time
 
 class Play(mp.Process):
 
-    def __init__(self, num_agents, network, train_queue, train_lock):
+    def __init__(self, num_agents, global_net, train_queue, train_lock):
         ''' self play environment process'''
         super(Play, self).__init__()
         self.train_queue = train_queue
         self.train_lock = train_lock
         self.env = Environment(num_agents=num_agents)
-        self.network = network
+        self.global_net = global_net
+        self.eval_net = Network()
+        self.eval_net.load_state_dict(global_net.state_dict())
+        self.eval_net.eval()
         self.num_agents = num_agents
 
     def run(self):
 
         # create and start caculation processes
-
+        step = 0
         while True:
             
             done = False
@@ -39,7 +42,7 @@ class Play(mp.Process):
                 obs = torch.from_numpy(obs)
 
                 with torch.no_grad():
-                    q_vals = self.network(obs)
+                    q_vals = self.eval_net(obs)
 
                 # get results
                 actions = select_action(q_vals)
@@ -50,6 +53,11 @@ class Play(mp.Process):
             self.train_queue.put(history)
 
             self.env.reset()
+
+            step += 1
+            if step == config.update_steps:
+                self.eval_net.load_state_dict(global_net.state_dict())
+                step = 0
 
 
 def select_action(policy):
@@ -67,14 +75,15 @@ def select_action(policy):
 
 
 class Train(mp.Process):
-    def __init__(self, train_queue, train_lock, target_net):
+    def __init__(self, train_queue, train_lock, global_net):
         super(Train, self).__init__()
         self.train_queue = train_queue
         self.train_lock = train_lock
 
-        self.target_net = target_net
+        self.global_net = global_net
+        self.global_net.to(device)
         self.train_net = Network()
-        self.train_net.load_state_dict(target_net.state_dict())
+        self.train_net.load_state_dict(self.global_net.state_dict())
         self.train_net.train()
         self.train_net.to(device)
         self.optimizer = torch.optim.AdamW(self.train_net.parameters())
@@ -84,7 +93,7 @@ class Train(mp.Process):
         self.steps = 0
 
     def run(self):
-        while self.steps < config.training_timesteps//config.checkpoint:
+        while self.steps < config.training_steps:
             # receive = 300000
             # self.train_lock.set()
             # pbar = tqdm(total=receive)
@@ -108,8 +117,12 @@ class Train(mp.Process):
             
             loader = DataLoader(sample_data, batch_size=256, num_workers=4, collate_fn=pad_collate)
             print('udpate')
-            update_network(self.train_net, self.target_net, self.optimizer, loader)
+            update_network(self.train_net, self.global_net, self.optimizer, loader)
+
+            self.global_net.load_state_dict(self.train_net.state_dict())
             self.steps += 1
+            if self.steps % config.checkpoint == 0:
+                torch.save(self.global_net.state_dict(), './model.pth')
 
 def update_network(train_net, target_net, optimizer, loader):
 
@@ -138,6 +151,7 @@ def update_network(train_net, target_net, optimizer, loader):
         q_val = torch.squeeze(torch.gather(q_vals, 2, action.unsqueeze(2)))
         q_val = torch.masked_select(q_val, mask==False)
 
+        # clip
         with torch.no_grad():
             target =  q_val + torch.clamp(target-q_val, -1, 1)
 
