@@ -135,49 +135,88 @@ class Environment:
         action_direc = np.empty((self.num_agents, 2), dtype=np.int8)
 
         for agent_id, action_idx in enumerate(actions):
-            action_direc[agent_id] = np.copy(action_list[action_idx])
+            next_pos[agent_id] += np.copy(action_list[action_idx])
+
             if action_idx == 0:
+                # stay
                 if np.array_equal(self.agents_pos[agent_id], self.goals[agent_id]):
                     rewards[agent_id] = config.stay_on_goal_reward
                 else:
                     rewards[agent_id] = config.stay_off_goal_reward
             else:
+                # move
+
                 rewards[agent_id] = config.move_reward
 
-        next_pos += action_direc
+                if np.any(next_pos[agent_id]<np.array([0,0])) or np.any(next_pos[agent_id]>=np.asarray(self.env_size)): 
+                    # agent out of bound
+                    rewards[agent_id] = config.collision_reward
+                    next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
 
-        agent_list = [i for i in range(self.num_agents)]
-        # out of region
-        for agent_id in agent_list.copy():
-            if np.any(next_pos[agent_id]<np.array([0,0])) or np.any(next_pos[agent_id]>=np.asarray(self.env_size)):
-                next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
-                rewards[agent_id] = config.collision_reward
-                agent_list.remove(agent_id)
+                elif self.world[tuple(next_pos[agent_id])] == 1:
+                    # collide obstacle
+                    rewards[agent_id] = config.collision_reward
+                    next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
+
+                elif len(*np.where(np.all(next_pos==next_pos[agent_id], axis=1))) > 1:
+                    # collide agent
+                    collide_agent_id = np.where(np.all(next_pos==next_pos[agent_id], axis=1))
+                    next_pos[collide_agent_id] = self.agents_pos[collide_agent_id]
+                    rewards[collide_agent_id] = config.collision_reward
+
+                elif np.any(np.all(next_pos[agent_id]==self.agents_pos, axis=1)):
+                    # agent swap
+                    target_agent_id = np.where(np.all(next_pos[agent_id]==self.agents_pos, axis=1))
+                    assert len(target_agent_id) == 1, 'target > 1'
+                    if np.array_equal(next_pos[target_agent_id], self.agents_pos[agent_id]):
+                        next_pos[agent_id] = self.agents_pos[agent_id]
+                        rewards[agent_id] = config.collision_reward
+                        next_pos[target_agent_id] = self.agents_pos[target_agent_id]
+                        rewards[target_agent_id] = config.collision_reward
+        
+        
+
+        # next_pos += action_direc
+
+        # agent_list = [i for i in range(self.num_agents)]
+        # # out of region
+        # for agent_id in agent_list.copy():
+        #     if np.any(next_pos[agent_id]<np.array([0,0])) or np.any(next_pos[agent_id]>=np.asarray(self.env_size)):
+        #         next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
+        #         rewards[agent_id] = config.collision_reward
+        #         agent_list.remove(agent_id)
 
 
-        # collide obstacle
-        for agent_id in agent_list.copy():
-            if self.world[tuple(next_pos[agent_id])] == 1:
-                next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
-                rewards[agent_id] = config.collision_reward
-                agent_list.remove(agent_id)
+        # # collide obstacle
+        # for agent_id in agent_list.copy():
+        #     if self.world[tuple(next_pos[agent_id])] == 1:
+        #         next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
+        #         rewards[agent_id] = config.collision_reward
+        #         agent_list.remove(agent_id)
 
         
-        # collide agent 
-        while len(np.unique(next_pos, axis=0)) < self.num_agents:
+        # # collide agent 
+        # while len(np.unique(next_pos, axis=0)) < self.num_agents:
 
-            pos, count = np.unique(next_pos, axis=0, return_counts=True)
-            for p, c in zip(pos, count):
-                if c > 1:
-                    temp = np.squeeze(np.argwhere(np.all(next_pos==p, axis=1))).tolist()
-                    next_pos[temp] = self.agents_pos[temp]
-                    rewards[temp] = config.collision_reward
+        #     pos, count = np.unique(next_pos, axis=0, return_counts=True)
+        #     for p, c in zip(pos, count):
+        #         if c > 1:
+        #             temp = np.squeeze(np.argwhere(np.all(next_pos==p, axis=1))).tolist()
+        #             next_pos[temp] = self.agents_pos[temp]
+        #             rewards[temp] = config.collision_reward
+        #             break
+        
+        # # agent swap
 
-            # agent_list = [agent_id for agent_id in agent_list if agent_id not in recover]
-            # next_pos[recover] = self.agents_pos[recover]
-            # rewards[recover] = config.collision_reward
+        # for agent_id1 in range(self.num_agents):
+        #     for agent_id2 in range(agent_id1+1, self.num_agents):
+        #         if next_pos[agent_id1] == self.agents_pos[agent_id2] and next_pos[agent_id2] == self.agents_pos[agent_id1]:
+        #             next_pos[agent_id1] = self.agents_pos[agent_id1]
+        #             next_pos[agent_id2] = self.agents_pos[agent_id2]
+        #             rewards[agent_id1] = config.collision_reward
+        #             rewards[agent_id2] = config.collision_reward
 
-        # assert len(np.unique(next_pos, axis=0)) == self.num_agents, 'duplicated pos '+str(next_pos)+ ' with ' + str(self.agents_pos) + ' and '+str(recover)
+
 
         self.agents_pos = np.copy(next_pos)
 
@@ -244,9 +283,8 @@ class Environment:
 
 if __name__ == '__main__':
 
-    pos = np.array([[1,2],[2,1],[3,4]])
-    x = np.array([1,2,3])
-    y = np.array([2,1,4])
-    map = np.zeros((3,5,5))
-    map[0,x,y] = 1
-    print(map[0,:,:])
+    pos = np.array([[1,2], [2,1], [3,4], [2,1]])
+    x = np.array([2,1])
+    z = np.array([1,2,3,4])
+    t = np.all(np.all(pos==x, axis=1))
+    print(t)
