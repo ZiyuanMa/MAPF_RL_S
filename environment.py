@@ -132,8 +132,6 @@ class Environment:
         rewards = np.empty(self.num_agents, dtype=np.float32)
         next_pos = np.copy(self.agents_pos)
 
-        action_direc = np.empty((self.num_agents, 2), dtype=np.int8)
-
         for agent_id, action_idx in enumerate(actions):
             next_pos[agent_id] += np.copy(action_list[action_idx])
 
@@ -174,7 +172,7 @@ class Environment:
                         next_pos[target_agent_id] = self.agents_pos[target_agent_id]
                         rewards[target_agent_id] = config.collision_reward
         
-        
+
 
         # next_pos += action_direc
 

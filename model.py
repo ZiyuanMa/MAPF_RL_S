@@ -23,8 +23,17 @@ class Network(nn.Module):
         self_attn_layers = nn.TransformerEncoderLayer(d_model=2*2*config.num_kernels, nhead=config.num_sa_heads,dim_feedforward=2*2*config.num_kernels)
         self.self_attn = nn.TransformerEncoder(self_attn_layers, config.num_sa_layers)
 
+        self.value_net = nn.Sequential(
+            nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
+            nn.LeakyReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
+            nn.LeakyReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(2*2*config.num_kernels, 1),
+        )
 
-        self.fc_net = nn.Sequential(
+        self.advantage_net = nn.Sequential(
             nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
             nn.LeakyReLU(),
             nn.Dropout(0.1),
@@ -37,26 +46,34 @@ class Network(nn.Module):
     def forward(self, x, seq_mask=None):
         if len(x.size()) == 5:
             x = x.view(-1, 3, 8, 8)
+
         x = self.conv_net(x)
         x = self.flatten(x)
+        
         if seq_mask is not None:
-            # assert x.size()[0] == seq_mask.size()[0], 'batch mismatch 1'
+
             x = x.view(seq_mask.size()[1], seq_mask.size()[0], 2*2*config.num_kernels)
             x = self.self_attn(x)
-
             x = x.view(seq_mask.size()[0]*seq_mask.size()[1], 2*2*config.num_kernels)
-            x = self.fc_net(x)
-            x = x.view(seq_mask.size()[0], seq_mask.size()[1], config.action_space)
-            # print(x)
-            # print(x.shape)
+
+            value = self.value_net(x)
+            adv = self.advantage_net(x)
+            q = value + adv - adv.mean(dim=-1, keepdim=True)
+
+            q = q.view(seq_mask.size()[0], seq_mask.size()[1], config.action_space)
+
         else:
 
             x = torch.unsqueeze(x, 1)
-            # x = self.self_attn(x)
+            x = self.self_attn(x)
             x = torch.squeeze(x, 1)
-            x = self.fc_net(x)
 
-        return x
+            value = self.value_net(x)
+            adv = self.advantage_net(x)
+            q = value + adv - adv.mean(dim=-1, keepdim=True)
+
+
+        return q
 
 # if __name__ == '__main__':
 #     t = torch.rand(2, 4)
