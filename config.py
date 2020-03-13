@@ -1,3 +1,6 @@
+import math
+
+
 # environment setting
 env_size = (8, 8)
 max_num_agents = 4
@@ -24,13 +27,13 @@ greedy_coef = 1
 training_steps = 100
 checkpoint = training_steps // 5
 update_steps = 10
-batch_size = 100
-mini_batch_size = 20
+batch_size = 10000
+mini_batch_size = 2000
 buffer_size = 1000000
+search_tree_depth = math.ceil(math.log2(buffer_size))-4
 forward_steps = 3
 gamma = 0.99
 
-1048576
 
 
 

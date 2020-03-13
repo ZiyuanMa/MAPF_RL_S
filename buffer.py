@@ -34,11 +34,11 @@ class SumTree:
         self.tree[-1] = 0
 
         for depth in reversed(range(self.depth)):
-            for idx in range(depth**2, (depth+1)**2):
+            for idx in range(2**depth, 2**(depth+1)):
                 self.tree[idx] = self.tree[idx*2] + self.tree[idx*2+1]
 
         self.length -= 1
-        
+        # self.check()
 
     def search(self, value):
 
@@ -53,6 +53,11 @@ class SumTree:
                 idx = 2*idx + 1
 
         return idx - 2**self.depth, value
+
+    def check(self):
+        for depth in range(self.depth):
+            for idx in range(2**depth, 2**(depth+1)):
+                assert self.tree[idx] == self.tree[2*idx] + self.tree[2*idx+1], 'tree mismatch ' + str(idx) + ' ' + str(self.tree[idx]) + ' ' + str(self.tree[2*idx]) + ' ' + str(self.tree[2*idx+1])
 
 
 
@@ -99,7 +104,7 @@ class ReplayBuffer(Dataset):
     
     def push(self, history: History):
 
-        assert self.size == self.search_tree.tree[1], 'size mismatch'
+        assert self.size == self.search_tree.tree[1], 'size mismatch '+str(self.size) + ' ' + str(self.search_tree.tree[1])
 
 
         # delete if out of bound

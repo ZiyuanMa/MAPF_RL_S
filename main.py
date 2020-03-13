@@ -22,7 +22,7 @@ def drl():
     network.share_memory()
 
     training_l = mp.Event()
-    training_q = mp.Queue()
+    training_q = mp.Queue(500)
 
 
     for _ in range(6):

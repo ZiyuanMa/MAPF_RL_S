@@ -99,6 +99,7 @@ class Train(mp.Process):
             # receive = 300000
             # self.train_lock.set()
             # pbar = tqdm(total=receive)
+            t = time.time()
             count = 0
             while not self.train_queue.empty():
                 history = self.train_queue.get_nowait()
@@ -133,6 +134,8 @@ class Train(mp.Process):
             if self.steps % config.checkpoint == 0:
                 print('save model ' + str(self.steps//config.checkpoint))
                 torch.save(self.global_net.state_dict(), './model'+str(self.steps//config.checkpoint)+'.pth')
+            
+            print('time: %.3f' %(time.time()-t))
 
 def update_network(train_net, target_net, optimizer, loader):
 
