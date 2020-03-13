@@ -11,8 +11,9 @@ from environment import Environment
 
 
 def drl():
-    l = np.random.randint(1, 5, size=os.cpu_count())
-    l = np.ones(os.cpu_count(), dtype=np.int) * 3
+    # l = np.random.randint(1, 5, size=os.cpu_count())
+    l = np.ones(10, dtype=np.int) * 3
+
     p_list = []
 
     network = Network()
@@ -21,12 +22,12 @@ def drl():
     network.share_memory()
 
     training_l = mp.Event()
-    training_q = mp.Queue(500)
+    training_q = mp.Queue()
 
 
-    for agents_num in l:
+    for _ in range(6):
 
-        master_p = Play(agents_num, network, training_q, training_l)
+        master_p = Play(3, network, training_q, training_l)
         master_p.start()
         p_list.append(master_p)
 

@@ -21,14 +21,16 @@ num_sa_layers = 2
 
 # training setting
 greedy_coef = 1
-training_steps = 1000
-checkpoint = training_steps // 10
+training_steps = 100
+checkpoint = training_steps // 5
 update_steps = 10
-batch_size = 1000
-mini_batch_size = 500
+batch_size = 100
+mini_batch_size = 20
 buffer_size = 1000000
 forward_steps = 3
 gamma = 0.99
+
+1048576
 
 
 

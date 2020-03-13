@@ -131,7 +131,7 @@ class Train(mp.Process):
             self.steps += 1
             config.greedy_coef *= 0.998
             if self.steps % config.checkpoint == 0:
-
+                print('save model ' + str(self.steps//config.checkpoint))
                 torch.save(self.global_net.state_dict(), './model'+str(self.steps//config.checkpoint)+'.pth')
 
 def update_network(train_net, target_net, optimizer, loader):

@@ -7,21 +7,72 @@ import numpy as np
 import numba as nb
 
 
+class SumTree:
+    def __init__(self, size_index):
+        self.depth = size_index
+        self.tree = np.zeros(2**(self.depth+1), dtype=np.uint32)
+        self.length = 0
+
+    def push(self, value):
+        assert self.length < 2**self.depth, 'sum tree out of size'
+
+        ptr = 2**self.depth + self.length
+
+        diff = value - self.tree[ptr]
+        self.tree[ptr] = value
+        ptr = ptr // 2
+
+        while ptr > 0:
+            self.tree[ptr] += diff
+            ptr = ptr // 2
+
+        self.length += 1
+
+    def pop(self):
+
+        self.tree = np.roll(self.tree, -1)
+        self.tree[-1] = 0
+
+        for depth in reversed(range(self.depth)):
+            for idx in range(depth**2, (depth+1)**2):
+                self.tree[idx] = self.tree[idx*2] + self.tree[idx*2+1]
+
+        self.length -= 1
+        
+
+    def search(self, value):
+
+        assert value <= self.tree[1], 'search out of size'
+
+        idx = 1
+        for _ in range(self.depth):
+            if value < self.tree[2*idx]:
+                idx = 2*idx
+            else:
+                value -= self.tree[2*idx]
+                idx = 2*idx + 1
+
+        return idx - 2**self.depth, value
+
+
+
+        
+
+
+
 class ReplayBuffer(Dataset):
 
     def __init__(self):
         self.buffer_size = config.buffer_size
         self.size = 0
         self.history_list = []
+        self.search_tree = SumTree(16)
 
 
     def __getitem__(self, index: int):
 
-        history_idx = 0
-        step_idx = index
-        while step_idx >= len(self.history_list[history_idx]):
-            step_idx -= len(self.history_list[history_idx])
-            history_idx += 1
+
+        history_idx, step_idx = self.search_tree.search(index)
 
         history = self.history_list[history_idx]
 
@@ -48,14 +99,19 @@ class ReplayBuffer(Dataset):
     
     def push(self, history: History):
 
+        assert self.size == self.search_tree.tree[1], 'size mismatch'
+
+
         # delete if out of bound
         while self.size >= self.buffer_size:
             self.size -= len(self.history_list[0])
             del self.history_list[0]
+            self.search_tree.pop()
 
         # push
         self.history_list.append(history)
         self.size += len(history)
+        self.search_tree.push(len(history))
 
     def clear(self):
         self.size = 0
