@@ -8,7 +8,7 @@ class Network(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv_net = nn.Sequential(
-            # nn.BatchNorm2d(3),
+            nn.BatchNorm2d(3),
             nn.Conv2d(config.obs_dimension, config.num_kernels, 3, 1),
             nn.LeakyReLU(),
             nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
