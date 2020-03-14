@@ -11,6 +11,7 @@ import torch.multiprocessing as mp
 from tqdm import tqdm
 import random
 import time
+import queue
 
 class Play(mp.Process):
 
@@ -106,7 +107,16 @@ class Train(mp.Process):
                 # receive -= len(history)
                 count += len(history)
                 self.buffer.push(history)
-                # time.sleep(0.0001)
+
+            # while True:
+            #     try:
+            #         history = self.train_queue.get()
+            #     except queue.Empty:
+            #         break
+            #     else:
+            #         count += len(history)
+            #         self.buffer.push(history)
+
             print('push: '+str(count))
             if count == 0:
                 time.sleep(1)
