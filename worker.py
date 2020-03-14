@@ -14,11 +14,11 @@ import time
 
 class Play(mp.Process):
 
-    def __init__(self, num_agents, global_net, train_queue, train_lock):
+    def __init__(self, num_agents, global_net, train_queue):
         ''' self play environment process'''
         super(Play, self).__init__()
         self.train_queue = train_queue
-        self.train_lock = train_lock
+
         self.env = Environment(num_agents=num_agents)
         self.global_net = global_net
         self.eval_net = Network()
@@ -76,10 +76,9 @@ def select_action(policy):
 
 
 class Train(mp.Process):
-    def __init__(self, train_queue, train_lock, global_net):
+    def __init__(self, train_queue, global_net):
         super(Train, self).__init__()
         self.train_queue = train_queue
-        self.train_lock = train_lock
 
         self.global_net = global_net
         self.global_net.eval()
@@ -157,7 +156,6 @@ def update_network(train_net, target_net, optimizer, loader):
             # t = torch.squeeze(target_net(post_state, mask).gather(2, selected_action))
             # print(reward.shape)
             # done = done.unsqueeze(2)
-            print(td_steps.dtype)
 
             target = reward + torch.pow(config.gamma, td_steps) * torch.squeeze(target_net(post_state, mask).gather(2, selected_action), dim=2) * done
             # print(target.shape)

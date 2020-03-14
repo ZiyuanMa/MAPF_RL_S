@@ -1,5 +1,5 @@
 import os
-os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "2"
 from worker import Play, Train
 from model import Network
 import config
@@ -21,18 +21,17 @@ def drl():
     network.eval()
     network.share_memory()
 
-    training_l = mp.Event()
     training_q = mp.Queue(500)
 
 
-    for _ in range(6):
+    for _ in range(5):
 
-        master_p = Play(3, network, training_q, training_l)
+        master_p = Play(3, network, training_q)
         master_p.start()
         p_list.append(master_p)
 
 
-    training_p = Train(training_q, training_l, network)
+    training_p = Train(training_q, network)
     training_p.start()
 
     training_p.join()
