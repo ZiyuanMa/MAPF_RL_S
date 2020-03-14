@@ -1,4 +1,7 @@
 import numpy as np
+import torch
+from environment import Environment
+from model import Network
 
 environment = [
     [
@@ -98,3 +101,13 @@ goals_position = [
     ],
 
 ]
+
+if __name__ == '__main__':
+    net = Network()
+    net.load_state_dict(torch.load('./model5.pth'))
+    net.eval()
+    print('load')
+    env = Environment(3)
+    env.load(environment[0], 3, agents_position[0], goals_position[0])
+
+    env.render()

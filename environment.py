@@ -119,6 +119,21 @@ class Environment:
 
         self.history = History(np.copy(self.world), self.num_agents, np.copy(self.agents_pos), np.copy(self.goals))
 
+    def load(self, world, num_agents, agents_pos, goals_pos):
+        self.num_agents = num_agents
+        self.env_size = (8, 8)
+        self.world = np.array(world)
+
+        self.goals = np.array(goals_pos, dtype=np.int8)
+
+
+        self.agents_pos = np.array(agents_pos, dtype=np.int8)
+
+        
+        self.steps = 0
+
+        self.history = History(np.copy(self.world), self.num_agents, np.copy(self.agents_pos), np.copy(self.goals))
+
     def step(self, actions):
         '''
         actions:
