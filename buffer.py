@@ -5,8 +5,16 @@ from torch.utils.data import Dataset, Subset
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 import numba as nb
+from typing import List
+
+spec = [
+    ('depth', nb.int32),               # a simple scalar field
+    ('tree', nb.uint32[:]),       # an array field
+    ('length', nb.int32),
+]
 
 
+# @nb.jitclass(spec)
 class SumTree:
     def __init__(self, size_index):
         self.depth = size_index
@@ -27,6 +35,19 @@ class SumTree:
             ptr = ptr // 2
 
         self.length += 1
+
+    def multi_push(self, values: List[int]):
+        assert self.length + len(values) < 2**self.depth, 'sum tree out of size'
+
+        self.tree[2**self.depth+self.length:2**self.depth+self.length+len(values)] = values
+        self.length += len(values)
+
+    
+    def multi_pop(self, num):
+        self.tree = np.roll(self.tree, -num)
+        self.tree[-num:] = 0
+        self.length -= num
+
 
     def pop(self):
 
@@ -59,6 +80,10 @@ class SumTree:
             for idx in range(2**depth, 2**(depth+1)):
                 assert self.tree[idx] == self.tree[2*idx] + self.tree[2*idx+1], 'tree mismatch ' + str(idx) + ' ' + str(self.tree[idx]) + ' ' + str(self.tree[2*idx]) + ' ' + str(self.tree[2*idx+1])
 
+    def update(self):
+        for depth in reversed(range(self.depth)):
+            for idx in range(2**depth, 2**(depth+1)):
+                self.tree[idx] = self.tree[2*idx] + self.tree[2*idx+1]
 
 
 
@@ -117,6 +142,33 @@ class ReplayBuffer(Dataset):
         self.size += len(history)
         self.search_tree.push(len(history))
 
+    def multi_push(self, history_list: List[History]):
+
+        assert self.size == self.search_tree.tree[1], 'size mismatch '+str(self.size) + ' ' + str(self.search_tree.tree[1])
+
+        len_list = [len(history) for history in history_list]
+        sum_len = sum(len_list)
+
+        if self.size + sum_len > self.buffer_size:
+            num_del = 0
+            while self.size + sum_len > self.buffer_size:
+                self.size -= len(self.history_list[num_del])
+                num_del += 1
+
+            del self.history_list[:num_del]
+            self.search_tree.multi_pop(num_del)
+
+        for history in history_list:
+            self.history_list.append(history)
+
+        self.size += sum_len
+
+        self.search_tree.multi_push(len_list)
+
+        self.search_tree.update()
+
+
+
     def clear(self):
         self.size = 0
         self.history_list.clear()
@@ -145,5 +197,6 @@ def pad_collate(batch):
     return state, action, cumu_reward, post_state, done, mask, td_steps
 
 if __name__ == '__main__':
-    a = torch.Tensor([1,2,3])
-    print(torch.pow(2, a))
+    a = np.array([1,2,3,4])
+    a[2:4] = [2,3]
+    print(a)

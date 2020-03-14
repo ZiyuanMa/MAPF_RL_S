@@ -58,7 +58,11 @@ class History:
         else:
             return False
 
-
+def init_env():
+    density = 0.25
+    world = np.random.choice(2, config.env_size, p=[1-density, density]).astype(np.float32)
+    print(world)
+    
 
 class Environment:
     def __init__(self, num_agents, env_size=config.env_size):

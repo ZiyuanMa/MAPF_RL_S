@@ -101,21 +101,19 @@ class Train(mp.Process):
             # pbar = tqdm(total=receive)
             t = time.time()
             count = 0
+            temp_buffer = list()
             while not self.train_queue.empty():
                 history = self.train_queue.get_nowait()
                 # pbar.update(min(len(history),receive))
                 # receive -= len(history)
                 count += len(history)
-                self.buffer.push(history)
+                temp_buffer.append(history)
+                if count > 50000:
+                    break
 
-            # while True:
-            #     try:
-            #         history = self.train_queue.get()
-            #     except queue.Empty:
-            #         break
-            #     else:
-            #         count += len(history)
-            #         self.buffer.push(history)
+
+            self.buffer.multi_push(temp_buffer)
+
 
             print('push: '+str(count))
             if count == 0:
