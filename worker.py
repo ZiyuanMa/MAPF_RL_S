@@ -11,7 +11,7 @@ import torch.multiprocessing as mp
 from tqdm import tqdm
 import random
 import time
-import queue
+
 
 class Play(mp.Process):
 
@@ -155,6 +155,7 @@ def update_network(train_net, target_net, optimizer, loader):
         post_state = post_state.to(device)
         done = done.to(device)
         mask = mask.to(device)
+        td_steps = td_steps.to(device)
 
         train_net.eval()
         with torch.no_grad():

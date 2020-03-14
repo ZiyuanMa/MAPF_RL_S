@@ -1,18 +1,21 @@
 import os
-os.environ["OMP_NUM_THREADS"] = "2"
+os.environ["OMP_NUM_THREADS"] = "1"
 from worker import Play, Train
 from model import Network
 import config
 import torch
 import torch.multiprocessing as mp
 import numpy as np
+import random
 import time
 from environment import Environment
+torch.manual_seed(0x5A31)
+np.random.seed(0x5A31)
+random.seed(0x5A31)
 
 
 def drl():
-    # l = np.random.randint(1, 5, size=os.cpu_count())
-    l = np.ones(10, dtype=np.int) * 3
+
 
     p_list = []
 
@@ -24,7 +27,7 @@ def drl():
     training_q = mp.Queue(500)
 
 
-    for _ in range(5):
+    for _ in range(6):
 
         master_p = Play(3, network, training_q)
         master_p.start()
