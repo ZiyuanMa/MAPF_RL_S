@@ -141,7 +141,7 @@ def update_network(train_net, target_net, optimizer, loader):
 
     loss = 0
 
-    for state, action, reward, post_state, done, mask in loader:
+    for state, action, reward, post_state, done, mask, td_steps in loader:
         state = state.to(device)
         action = action.to(device)
         reward = reward.to(device)
@@ -157,10 +157,9 @@ def update_network(train_net, target_net, optimizer, loader):
             # t = torch.squeeze(target_net(post_state, mask).gather(2, selected_action))
             # print(reward.shape)
             # done = done.unsqueeze(2)
-            # print(done.shape)
-            # print(done.shape)
+            print(td_steps.dtype)
 
-            target = reward + config.gamma**config.forward_steps * torch.squeeze(target_net(post_state, mask).gather(2, selected_action), dim=2) * done
+            target = reward + torch.pow(config.gamma, td_steps) * torch.squeeze(target_net(post_state, mask).gather(2, selected_action), dim=2) * done
             # print(target.shape)
             # target = torch.masked_select(target, mask==False)
         
