@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from numba import jit
 import config
+import random
 
-action_list = np.array([[0, 0],[0, 1],[0, -1],[-1, 0],[1, 0]], dtype=np.int8)
+action_list = np.array([[0, 0],[-1, 0],[1, 0],[0, -1],[0, 1]], dtype=np.int8)
 
 # @jit(nopython=True)
 def observe(environment, num_agents, agents_pos, goals_pos):
@@ -53,71 +54,107 @@ class History:
 
     def done(self):
         if np.all(self.agents_pos[-1,:,:] == self.goals_pos):
-
             return True
         else:
             return False
 
-def init_env():
-    density = 0.25
-    world = np.random.choice(2, config.env_size, p=[1-density, density]).astype(np.float32)
-    print(world)
+
+def find(map, pos_list, pos):
+    if map[pos] == 0:
+        if pos not in pos_list:
+            pos_list.append(pos)
+        if pos[0] > 0:
+            find(map, pos_list, (pos[0]-1, pos[1]))
+        
+        if pos[0] < 7:
+            find(map, pos_list, (pos[0]+1, pos[1]))
+
+        if pos[1] > 0:
+            find(map, pos_list, (pos[0], pos[1]-1))
+
+        if pos[1] < 7:
+            find(map, pos_list, (pos[0], pos[1]+1))
+
+
+def map_partition(map, agent_pos):
+    open_list = []
+    open_list.append(agent_pos)
+    close_list = []
+    while len(open_list) > 0:
+        pos = open_list.pop()
+
+        top = (pos[0]-1, pos[1])
+        if top[0] >= 0 and map[top]==0 and top not in open_list and top not in close_list:
+            open_list.append(top)
+        
+        down = (pos[0]+1, pos[1])
+        if down[0] <= 7 and map[down]==0 and down not in open_list and down not in close_list:
+            open_list.append(down)
+        
+        left = (pos[0], pos[1]-1)
+        if left[1] >= 0 and map[left]==0 and left not in open_list and left not in close_list:
+            open_list.append(left)
+        
+        right = (pos[0], pos[1]+1)
+        if right[1] <= 7 and map[right]==0 and right not in open_list and right not in close_list:
+            open_list.append(right)
+
+        close_list.append(pos)
+    return close_list
     
+
 
 class Environment:
     def __init__(self, num_agents, env_size=config.env_size):
         '''
-        self.world:
+        self.map:
             0 = empty
             1 = obstacle
         '''
         self.num_agents = num_agents
         self.env_size = env_size
-        self.world = np.random.choice(2, self.env_size, p=[1-config.obstacle_density, config.obstacle_density]).astype(np.float32)
+        self.map = np.random.choice(2, self.env_size, p=[1-config.obstacle_density, config.obstacle_density]).astype(np.float32)
 
-        self.goals = np.empty((self.num_agents, 2), dtype=np.int8)
-        for i in range(self.num_agents):
-            pos = np.random.randint(0, 8, 2, dtype=np.int8)
-            while self.world[tuple(pos)] == 1:
-                pos = np.random.randint(0, 8, 2, dtype=np.int8)
+        empty_pos = np.argwhere(self.map==0).astype(np.int8)
+        self.goals = empty_pos[np.random.choice(empty_pos.shape[0], self.num_agents, replace=False)]
 
-            self.goals[i] = pos
 
         self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int8)
         for i in range(self.num_agents):
-            pos = np.random.randint(0, 8, 2, dtype=np.int8)
-            while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents_pos[:i]):
-                pos = np.random.randint(0, 8, 2, dtype=np.int8)
+
+            pos_list = map_partition(self.map, tuple(self.goals[i]))
+            pos = np.asarray(random.choice(pos_list))
+            while np.any(np.all(self.agents_pos[:i]==pos, axis=1)):
+                pos = np.asarray(random.choice(pos_list))
 
             self.agents_pos[i] = pos
         
         self.steps = 0
 
-        self.history = History(np.copy(self.world), self.num_agents, np.copy(self.agents_pos), np.copy(self.goals))
+        self.history = History(np.copy(self.map), self.num_agents, np.copy(self.agents_pos), np.copy(self.goals))
 
     def reset(self):
 
-        self.world = np.random.choice(2, self.env_size, p=[1-config.obstacle_density, config.obstacle_density]).astype(np.float32)
+        self.map = np.random.choice(2, self.env_size, p=[1-config.obstacle_density, config.obstacle_density]).astype(np.float32)
 
-        self.goals = np.empty((self.num_agents, 2), dtype=np.int8)
-        for i in range(self.num_agents):
-            pos = np.random.randint(0, 8, 2, dtype=np.int8)
-            while self.world[tuple(pos)] == 1:
-                pos = np.random.randint(0, 8, 2, dtype=np.int8)
+        empty_pos = np.argwhere(self.map==0)
+        self.goals = empty_pos[np.random.choice(empty_pos.shape[0], self.num_agents, replace=False)]
+        # print(self.goals)
 
-            self.goals[i] = pos
 
         self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int8)
         for i in range(self.num_agents):
-            pos = np.random.randint(0, 8, 2, dtype=np.int8)
-            while self.world[tuple(pos)] == 1 or any(np.array_equal(pos, _pos) for _pos in self.agents_pos[:i]):
-                pos = np.random.randint(0, 8, 2, dtype=np.int8)
+
+            pos_list = map_partition(self.map, tuple(self.goals[i]))
+            pos = np.asarray(random.choice(pos_list))
+            while np.any(np.all(self.agents_pos[:i]==pos, axis=1)):
+                pos = np.asarray(random.choice(pos_list))
 
             self.agents_pos[i] = pos
         
         self.steps = 0
 
-        self.history = History(np.copy(self.world), self.num_agents, np.copy(self.agents_pos), np.copy(self.goals))
+        self.history = History(np.copy(self.map), self.num_agents, np.copy(self.agents_pos), np.copy(self.goals))
 
     def step(self, actions):
         '''
@@ -139,6 +176,8 @@ class Environment:
         for agent_id, action_idx in enumerate(actions):
             next_pos[agent_id] += np.copy(action_list[action_idx])
 
+        for agent_id, action_idx in enumerate(actions):
+
             if action_idx == 0:
                 # stay
                 if np.array_equal(self.agents_pos[agent_id], self.goals[agent_id]):
@@ -155,13 +194,14 @@ class Environment:
                     rewards[agent_id] = config.collision_reward
                     next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
 
-                elif self.world[tuple(next_pos[agent_id])] == 1:
+                elif self.map[tuple(next_pos[agent_id])] == 1:
                     # collide obstacle
                     rewards[agent_id] = config.collision_reward
                     next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
 
                 elif len(*np.where(np.all(next_pos==next_pos[agent_id], axis=1))) > 1:
                     # collide agent
+
                     collide_agent_id = np.where(np.all(next_pos==next_pos[agent_id], axis=1))
                     next_pos[collide_agent_id] = self.agents_pos[collide_agent_id]
                     rewards[collide_agent_id] = config.collision_reward
@@ -175,48 +215,6 @@ class Environment:
                         rewards[agent_id] = config.collision_reward
                         next_pos[target_agent_id] = self.agents_pos[target_agent_id]
                         rewards[target_agent_id] = config.collision_reward
-        
-
-
-        # next_pos += action_direc
-
-        # agent_list = [i for i in range(self.num_agents)]
-        # # out of region
-        # for agent_id in agent_list.copy():
-        #     if np.any(next_pos[agent_id]<np.array([0,0])) or np.any(next_pos[agent_id]>=np.asarray(self.env_size)):
-        #         next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
-        #         rewards[agent_id] = config.collision_reward
-        #         agent_list.remove(agent_id)
-
-
-        # # collide obstacle
-        # for agent_id in agent_list.copy():
-        #     if self.world[tuple(next_pos[agent_id])] == 1:
-        #         next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
-        #         rewards[agent_id] = config.collision_reward
-        #         agent_list.remove(agent_id)
-
-        
-        # # collide agent 
-        # while len(np.unique(next_pos, axis=0)) < self.num_agents:
-
-        #     pos, count = np.unique(next_pos, axis=0, return_counts=True)
-        #     for p, c in zip(pos, count):
-        #         if c > 1:
-        #             temp = np.squeeze(np.argwhere(np.all(next_pos==p, axis=1))).tolist()
-        #             next_pos[temp] = self.agents_pos[temp]
-        #             rewards[temp] = config.collision_reward
-        #             break
-        
-        # # agent swap
-
-        # for agent_id1 in range(self.num_agents):
-        #     for agent_id2 in range(agent_id1+1, self.num_agents):
-        #         if next_pos[agent_id1] == self.agents_pos[agent_id2] and next_pos[agent_id2] == self.agents_pos[agent_id1]:
-        #             next_pos[agent_id1] = self.agents_pos[agent_id1]
-        #             next_pos[agent_id2] = self.agents_pos[agent_id2]
-        #             rewards[agent_id1] = config.collision_reward
-        #             rewards[agent_id2] = config.collision_reward
 
 
 
@@ -245,7 +243,7 @@ class Environment:
         for i in range(self.num_agents):
             obs[i,0][tuple(self.agents_pos[i])] = 1
             obs[i,1][tuple(self.goals[i])] = 1
-            obs[i,2,:,:] = np.copy(self.world)
+            obs[i,2,:,:] = np.copy(self.map)
 
         return obs
 
@@ -262,12 +260,12 @@ class Environment:
 
         obs[0,:,:][tuple(self.agents_pos[agent_id])] = 1
         obs[1,:,:][tuple(self.goals[agent_id])] = 1
-        obs[2,:,:] = np.copy(self.world)
+        obs[2,:,:] = np.copy(self.map)
 
         return obs
     
     def render(self):
-        map = np.copy(self.world)
+        map = np.copy(self.map)
         for agent_id in range(self.num_agents):
             if np.array_equal(self.agents_pos[agent_id], self.goals[agent_id]):
                 map[tuple(self.agents_pos[agent_id])] = 4
@@ -283,10 +281,4 @@ class Environment:
         plt.pause(1)
 
 
-if __name__ == '__main__':
 
-    pos = np.array([[1,2], [2,1], [3,4], [2,1]])
-    x = np.array([2,1])
-    z = np.array([1,2,3,4])
-    t = np.all(np.all(pos==x, axis=1))
-    print(t)

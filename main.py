@@ -24,7 +24,7 @@ def drl():
     training_q = mp.Queue(500)
 
 
-    for _ in range(5):
+    for _ in range(6):
 
         master_p = Play(3, network, training_q)
         master_p.start()

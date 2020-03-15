@@ -1,17 +1,16 @@
 from environment import Environment
 from buffer import ReplayBuffer, pad_collate
 from model import Network
+from search import CBSSolver
 import config
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from torch.distributions import Categorical
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 import torch.multiprocessing as mp 
 from tqdm import tqdm
 import random
 import time
-import queue
 
 class Play(mp.Process):
 
@@ -32,27 +31,126 @@ class Play(mp.Process):
         # create and start caculation processes
         step = 0
         while True:
-            
-            done = False
-            # start one eposide
-            while not done:
-                # self.train_lock.wait()
+            # print(self.env.map)
+            # print(self.env.agents_pos)
+            # print(self.env.goals)
+            if random.random() < 1:
+                temp_map = np.copy(self.env.map)
+                map = []
+                for i, row in enumerate(temp_map):
+                    map.append([])
+                    for grid in row:
+                        if grid == 0:
+                            map[i].append(False)
+                        else:
+                            map[i].append(True)
+                
+                temp_agents_pos = np.copy(self.env.agents_pos)
+                agents_pos= []
+                for pos in temp_agents_pos:
+                    agents_pos.append(tuple(pos))
 
-                # observe
-                obs = self.env.joint_observe()
-                obs = torch.from_numpy(obs)
+                temp_goals_pos = np.copy(self.env.goals)
+                goals_pos = []
+                for pos in temp_goals_pos:
+                    goals_pos.append(tuple(pos))
 
-                with torch.no_grad():
-                    q_vals = self.eval_net(obs)
+                solver  =  CBSSolver(map, agents_pos, goals_pos)
+                paths = solver.find_solution()
 
-                # get results
-                actions = select_action(q_vals)
+                max_len = max([len(path) for path in paths])
 
-                done = self.env.step(actions)
+                for path in paths:
+                    while len(path) < max_len:
+                        path.append(path[-1])
+
+                done = False
+                for step in range(1, max_len):
+                    actions = []
+
+                    direction = np.array(list(paths[0][step])) - np.array(list(paths[0][step-1]))
+
+                    if np.array_equal(direction, np.array([0, 0])):
+                        actions.append(0)
+                    elif np.array_equal(direction, np.array([-1, 0])):
+                        actions.append(1)
+                    elif np.array_equal(direction, np.array([1, 0])):
+                        actions.append(2)
+                    elif np.array_equal(direction, np.array([0, -1])):
+                        actions.append(3)
+                    elif np.array_equal(direction, np.array([0, 1])):
+                        actions.append(4)
+
+
+                    direction = np.array(list(paths[1][step])) - np.array(list(paths[1][step-1]))
+
+                    if np.array_equal(direction, np.array([0, 0])):
+                        actions.append(0)
+                    elif np.array_equal(direction, np.array([-1, 0])):
+                        actions.append(1)
+                    elif np.array_equal(direction, np.array([1, 0])):
+                        actions.append(2)
+                    elif np.array_equal(direction, np.array([0, -1])):
+                        actions.append(3)
+                    elif np.array_equal(direction, np.array([0, 1])):
+                        actions.append(4)
+
+
+                    direction = np.array(list(paths[2][step])) - np.array(list(paths[2][step-1]))
+
+                    if np.array_equal(direction, np.array([0, 0])):
+                        actions.append(0)
+                    elif np.array_equal(direction, np.array([-1, 0])):
+                        actions.append(1)
+                    elif np.array_equal(direction, np.array([1, 0])):
+                        actions.append(2)
+                    elif np.array_equal(direction, np.array([0, -1])):
+                        actions.append(3)
+                    elif np.array_equal(direction, np.array([0, 1])):
+                        actions.append(4)
+
+                    done = self.env.step(actions)
+
+                    for i, pos in enumerate(np.copy(self.env.agents_pos)):
+                        if not np.array_equal(pos, np.array(list(paths[i][step]))):
+                            print(step)
+                            print(paths[0][step-1:step+1])
+                            print(paths[1][step-1:step+1])
+                            print(paths[2][step-1:step+1])
+                            print(self.env.history.agents_pos[-2:])
+                            print(actions)
+                            print(self.env.history.rewards[-1])
+
+
+
+                # if not done:
+                #     print(paths)
+                #     print(self.env.agents_pos)
+
+
+            else:
+
+                done = False
+                # start one eposide
+                while not done:
+                    # self.train_lock.wait()
+
+                    # observe
+                    obs = self.env.joint_observe()
+                    obs = torch.from_numpy(obs)
+
+                    with torch.no_grad():
+                        q_vals = self.eval_net(obs)
+
+                    # get results
+                    actions = select_action(q_vals)
+
+                    done = self.env.step(actions)
 
             history = self.env.get_history()
             self.train_queue.put(history)
 
+            
             self.env.reset()
 
             step += 1
