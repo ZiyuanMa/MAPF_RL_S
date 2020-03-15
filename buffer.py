@@ -4,17 +4,9 @@ import torch
 from torch.utils.data import Dataset, Subset
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
-import numba as nb
 from typing import List
 
-spec = [
-    ('depth', nb.int32),               # a simple scalar field
-    ('tree', nb.uint32[:]),       # an array field
-    ('length', nb.int32),
-]
 
-
-# @nb.jitclass(spec)
 class SumTree:
     def __init__(self, size_index):
         self.depth = size_index
