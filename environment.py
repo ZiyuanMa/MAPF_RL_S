@@ -8,14 +8,10 @@ import random
 
 action_list = np.array([[0, 0],[-1, 0],[1, 0],[0, -1],[0, 1]], dtype=np.int8)
 
-# @jit(nopython=True)
+
 def observe(environment, num_agents, agents_pos, goals_pos):
 
     obs = np.zeros((num_agents, 3, *config.env_size), dtype=np.float32)
-    # agent_id = np.arange(num_agents, dtype=np.int8)
-    # obs[agent_id, 0, agents_pos[:,0], agents_pos[:,1]] = 1
-    # obs[agent_id, 1, goals_pos[:,0], goals_pos[:,1]] = 1
-    # obs[agent_id, 2, :, :] = np.copy(environment)
     for i in range(num_agents):
         obs[i,0,:,:][tuple(agents_pos[i])] = 1
         obs[i,1,:,:][tuple(goals_pos[i])] = 1
@@ -58,23 +54,6 @@ class History:
             return True
         else:
             return False
-
-
-def find(map, pos_list, pos):
-    if map[pos] == 0:
-        if pos not in pos_list:
-            pos_list.append(pos)
-        if pos[0] > 0:
-            find(map, pos_list, (pos[0]-1, pos[1]))
-        
-        if pos[0] < 7:
-            find(map, pos_list, (pos[0]+1, pos[1]))
-
-        if pos[1] > 0:
-            find(map, pos_list, (pos[0], pos[1]-1))
-
-        if pos[1] < 7:
-            find(map, pos_list, (pos[0], pos[1]+1))
 
 
 def map_partition(map, agent_pos):
@@ -140,7 +119,6 @@ class Environment:
 
         empty_pos = np.argwhere(self.map==0)
         self.goals = empty_pos[np.random.choice(empty_pos.shape[0], self.num_agents, replace=False)]
-        # print(self.goals)
 
 
         self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int8)

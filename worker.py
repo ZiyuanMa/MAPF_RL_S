@@ -11,10 +11,6 @@ import torch.multiprocessing as mp
 from tqdm import tqdm
 import random
 import time
-<<<<<<< HEAD
-=======
-
->>>>>>> 6766c523fd98aff25cb1b33795b03d8a9d4d542b
 
 class Play(mp.Process):
 
@@ -38,7 +34,7 @@ class Play(mp.Process):
             # print(self.env.map)
             # print(self.env.agents_pos)
             # print(self.env.goals)
-            if random.random() < 1:
+            if random.random() <= 0.2:
                 temp_map = np.copy(self.env.map)
                 map = []
                 for i, row in enumerate(temp_map):
@@ -115,21 +111,15 @@ class Play(mp.Process):
 
                     done = self.env.step(actions)
 
-                    for i, pos in enumerate(np.copy(self.env.agents_pos)):
-                        if not np.array_equal(pos, np.array(list(paths[i][step]))):
-                            print(step)
-                            print(paths[0][step-1:step+1])
-                            print(paths[1][step-1:step+1])
-                            print(paths[2][step-1:step+1])
-                            print(self.env.history.agents_pos[-2:])
-                            print(actions)
-                            print(self.env.history.rewards[-1])
-
-
-
-                # if not done:
-                #     print(paths)
-                #     print(self.env.agents_pos)
+                    # for i, pos in enumerate(np.copy(self.env.agents_pos)):
+                    #     if not np.array_equal(pos, np.array(list(paths[i][step]))):
+                    #         print(step)
+                    #         print(paths[0][step-1:step+1])
+                    #         print(paths[1][step-1:step+1])
+                    #         print(paths[2][step-1:step+1])
+                    #         print(self.env.history.agents_pos[-2:])
+                    #         print(actions)
+                    #         print(self.env.history.rewards[-1])
 
 
             else:
