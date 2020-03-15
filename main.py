@@ -24,10 +24,10 @@ def drl():
     network.eval()
     network.share_memory()
 
-    training_q = mp.Queue(500)
+    training_q = mp.Queue(1000)
 
 
-    for _ in range(6):
+    for _ in range(10):
 
         master_p = Play(3, network, training_q)
         master_p.start()

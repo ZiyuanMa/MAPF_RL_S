@@ -138,8 +138,8 @@ class Environment:
     def load(self, world, num_agents, agents_pos, goals_pos):
         self.num_agents = num_agents
         self.env_size = (8, 8)
-        self.world = np.array(world)
-
+        self.map = np.array(world)
+        print(self.map)
         self.goals = np.array(goals_pos, dtype=np.int8)
 
 
@@ -148,7 +148,7 @@ class Environment:
         
         self.steps = 0
 
-        self.history = History(np.copy(self.world), self.num_agents, np.copy(self.agents_pos), np.copy(self.goals))
+        self.history = History(np.copy(self.map), self.num_agents, np.copy(self.agents_pos), np.copy(self.goals))
 
     def step(self, actions):
         '''
@@ -164,52 +164,67 @@ class Environment:
         # assert len(actions) == self.num_agents, 'actions number'
         # assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
 
+
+        id_act_tuple = [(agent_id, action_idx) for agent_id, action_idx in enumerate(actions)]
+        check_id = [i for i in range(self.num_agents)]
+
         rewards = np.empty(self.num_agents, dtype=np.float32)
-        next_pos = np.copy(self.agents_pos)
-
-        for agent_id, action_idx in enumerate(actions):
-            next_pos[agent_id] += np.copy(action_list[action_idx])
-
-        for agent_id, action_idx in enumerate(actions):
-
-            if action_idx == 0:
-                # stay
+        for agent_id in check_id.copy():
+            if actions[agent_id] == 0:
+                check_id.remove(agent_id)
                 if np.array_equal(self.agents_pos[agent_id], self.goals[agent_id]):
                     rewards[agent_id] = config.stay_on_goal_reward
                 else:
                     rewards[agent_id] = config.stay_off_goal_reward
             else:
-                # move
-
                 rewards[agent_id] = config.move_reward
 
-                if np.any(next_pos[agent_id]<np.array([0,0])) or np.any(next_pos[agent_id]>=np.asarray(self.env_size)): 
-                    # agent out of bound
+
+        next_pos = np.copy(self.agents_pos)
+
+        for agent_id in check_id:
+            next_pos[agent_id] += np.copy(action_list[actions[agent_id]])
+
+
+
+
+        for agent_id in check_id.copy():
+
+            # move
+
+            if np.any(next_pos[agent_id]<np.array([0,0])) or np.any(next_pos[agent_id]>=np.asarray(self.env_size)): 
+                # agent out of bound
+                rewards[agent_id] = config.collision_reward
+                next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
+                check_id.remove(agent_id)
+
+            elif self.map[tuple(next_pos[agent_id])] == 1:
+                # collide obstacle
+                rewards[agent_id] = config.collision_reward
+                next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
+                check_id.remove(agent_id)
+
+            
+            
+        for agent_id in check_id.copy():
+            
+            if len(*np.where(np.all(next_pos==next_pos[agent_id], axis=1))) > 1:
+                # collide agent
+
+                collide_agent_id = np.where(np.all(next_pos==next_pos[agent_id], axis=1))[0].tolist()
+                collide_agent_id = [ id for id in collide_agent_id if id in check_id]
+                next_pos[collide_agent_id] = self.agents_pos[collide_agent_id]
+                rewards[collide_agent_id] = config.collision_reward
+
+            elif np.any(np.all(next_pos[agent_id]==self.agents_pos, axis=1)):
+                # agent swap
+                target_agent_id = np.where(np.all(next_pos[agent_id]==self.agents_pos, axis=1))
+                assert len(target_agent_id) == 1, 'target > 1'
+                if np.array_equal(next_pos[target_agent_id], self.agents_pos[agent_id]):
+                    next_pos[agent_id] = self.agents_pos[agent_id]
                     rewards[agent_id] = config.collision_reward
-                    next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
-
-                elif self.map[tuple(next_pos[agent_id])] == 1:
-                    # collide obstacle
-                    rewards[agent_id] = config.collision_reward
-                    next_pos[agent_id] = np.copy(self.agents_pos[agent_id])
-
-                elif len(*np.where(np.all(next_pos==next_pos[agent_id], axis=1))) > 1:
-                    # collide agent
-
-                    collide_agent_id = np.where(np.all(next_pos==next_pos[agent_id], axis=1))
-                    next_pos[collide_agent_id] = self.agents_pos[collide_agent_id]
-                    rewards[collide_agent_id] = config.collision_reward
-
-                elif np.any(np.all(next_pos[agent_id]==self.agents_pos, axis=1)):
-                    # agent swap
-                    target_agent_id = np.where(np.all(next_pos[agent_id]==self.agents_pos, axis=1))
-                    assert len(target_agent_id) == 1, 'target > 1'
-                    if np.array_equal(next_pos[target_agent_id], self.agents_pos[agent_id]):
-                        next_pos[agent_id] = self.agents_pos[agent_id]
-                        rewards[agent_id] = config.collision_reward
-                        next_pos[target_agent_id] = self.agents_pos[target_agent_id]
-                        rewards[target_agent_id] = config.collision_reward
-
+                    next_pos[target_agent_id] = self.agents_pos[target_agent_id]
+                    rewards[target_agent_id] = config.collision_reward
 
 
         self.agents_pos = np.copy(next_pos)

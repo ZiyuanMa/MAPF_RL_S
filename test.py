@@ -147,7 +147,8 @@ if __name__ == '__main__':
         with torch.no_grad():
             q_vals = net(obs)
 
-        if random.random() < 0.03:
+        print(q_vals)
+        if random.random() < 0.5:
             # random action
             actions = np.random.randint(config.action_space, size=q_vals.size()[0])
 
