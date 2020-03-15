@@ -34,7 +34,7 @@ class Play(mp.Process):
             # print(self.env.map)
             # print(self.env.agents_pos)
             # print(self.env.goals)
-            if random.random() < 0.2:
+            if random.random() < 0.5:
                 temp_map = np.copy(self.env.map)
                 map = []
                 for i, row in enumerate(temp_map):
@@ -120,6 +120,8 @@ class Play(mp.Process):
                     #         print(self.env.history.agents_pos[-2:])
                     #         print(actions)
                     #         print(self.env.history.rewards[-1])
+                if not done:
+                    raise RuntimeError('not done')
 
 
             else:

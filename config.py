@@ -31,7 +31,7 @@ batch_size = 10000
 mini_batch_size = 2500
 buffer_size = 1000000
 search_tree_depth = math.ceil(math.log2(buffer_size))-4
-TD_steps = 3
+TD_steps = 4
 gamma = 0.99
 
 

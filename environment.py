@@ -165,7 +165,6 @@ class Environment:
         # assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
 
 
-        id_act_tuple = [(agent_id, action_idx) for agent_id, action_idx in enumerate(actions)]
         check_id = [i for i in range(self.num_agents)]
 
         rewards = np.empty(self.num_agents, dtype=np.float32)
