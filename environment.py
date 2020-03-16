@@ -164,6 +164,10 @@ class Environment:
         # assert len(actions) == self.num_agents, 'actions number'
         # assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
 
+        if np.unique(self.agents_pos, axis=0).shape[0] < self.num_agents:
+            print(self.map)
+            print(self.agents_pos)
+            raise RuntimeError('unique')
 
         check_id = [i for i in range(self.num_agents)]
 
