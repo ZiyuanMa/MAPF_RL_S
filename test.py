@@ -129,11 +129,12 @@ goals_position = [
 
 if __name__ == '__main__':
     net = Network()
-    net.load_state_dict(torch.load('./model5.pth'))
+    net.load_state_dict(torch.load('./model3.pth'))
     net.eval()
     print('load')
     env = Environment(3)
-    env.load(environment[0], 3, agents_position[0], goals_position[0])
+    test_case = 0
+    env.load(environment[test_case], 3, agents_position[test_case], goals_position[test_case])
 
     done = False
     # start one eposide
@@ -148,14 +149,9 @@ if __name__ == '__main__':
             q_vals = net(obs)
 
         print(q_vals)
-        if random.random() < 0.5:
-            # random action
-            actions = np.random.randint(config.action_space, size=q_vals.size()[0])
 
-        else:
-            # greedy action
 
-            actions = torch.argmax(q_vals, 1).numpy()
+        actions = torch.argmax(q_vals, 1).numpy()
 
 
         print(actions)

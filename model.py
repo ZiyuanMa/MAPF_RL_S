@@ -119,8 +119,6 @@ class Network(nn.Module):
         self.self_attn = nn.Sequential(
             SelfAttention(2*2*config.num_kernels),
             SelfAttention(2*2*config.num_kernels),
-            SelfAttention(2*2*config.num_kernels),
-            SelfAttention(2*2*config.num_kernels),
         )
 
         self.value_net = nn.Sequential(

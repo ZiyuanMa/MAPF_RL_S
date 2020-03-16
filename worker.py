@@ -36,7 +36,7 @@ class Play(mp.Process):
             # print(self.env.map)
             # print(self.env.agents_pos)
             # print(self.env.goals)
-            if random.random() < 0.5:
+            if random.random() < 0.2:
                 map = (np.copy(self.env.map)==1).tolist()
 
                 
@@ -178,7 +178,7 @@ class Train(mp.Process):
         self.train_net.load_state_dict(self.global_net.state_dict())
         self.train_net.train()
         self.train_net.to(device)
-        self.optimizer = torch.optim.AdamW(self.train_net.parameters())
+        self.optimizer = torch.optim.Adam(self.train_net.parameters(), lr=5e-5, weight_decay=1e-6)
 
         self.buffer = ReplayBuffer()
 
@@ -190,7 +190,7 @@ class Train(mp.Process):
             t = time.time()
             count = 0
             temp_buffer = list()
-            while count <= 5000:
+            while count <= 10000:
             # while not self.train_queue.empty():
                 history = self.train_queue.get()
                 count += len(history)
@@ -249,6 +249,8 @@ def update_network(train_net, target_net, optimizer, loader):
             # done = done.unsqueeze(2)
 
             target = reward + torch.pow(config.gamma, td_steps) * torch.squeeze(target_net(post_state, mask).gather(2, selected_action), dim=2) * done
+
+
             # print(target.shape)
             # target = torch.masked_select(target, mask==False)
         
