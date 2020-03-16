@@ -152,14 +152,8 @@ class Play(mp.Process):
 
 def select_action(policy):
 
-    if random.random() < config.greedy_coef:
-        # random action
-        return np.random.randint(config.action_space, size=policy.size()[0])
 
-    else:
-        # greedy action
-
-        return torch.argmax(policy, 1).numpy()
+    return torch.argmax(policy, 1).numpy()
             
 
 
@@ -219,14 +213,15 @@ class Train(mp.Process):
             print('udpate '+str(self.steps+1))
             update_network(self.train_net, self.global_net, self.optimizer, loader)
 
+
+            self.train_net.reset_noise()
+
             self.global_net.load_state_dict(self.train_net.state_dict())
 
-            if self.global_net.training:
-                raise RuntimeError('train')
 
             print('finish udpate '+str(self.steps+1))
             self.steps += 1
-            config.greedy_coef *= 0.998
+
             if self.steps % config.checkpoint == 0:
                 print('save model ' + str(self.steps//config.checkpoint))
                 torch.save(self.global_net.state_dict(), './model'+str(self.steps//config.checkpoint)+'.pth')

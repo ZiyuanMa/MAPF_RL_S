@@ -23,11 +23,10 @@ num_sa_layers = 4
 
 
 # training setting
-greedy_coef = 1
-training_steps = 1000
+training_steps = 4000
 checkpoint = training_steps // 5
 update_steps = 10
-batch_size = 10000
+batch_size = 5000
 mini_batch_size = 2500
 buffer_size = 1000000
 search_tree_depth = math.ceil(math.log2(buffer_size))-4
