@@ -19,7 +19,7 @@ finish_reward = 1
 # model setting
 num_kernels = 64
 num_sa_heads = 4
-num_sa_layers = 2
+num_sa_layers = 4
 
 
 # training setting

@@ -20,7 +20,7 @@ class Network(nn.Module):
 
         self.flatten = nn.Flatten()
 
-        self_attn_layers = nn.TransformerEncoderLayer(d_model=2*2*config.num_kernels, nhead=config.num_sa_heads,dim_feedforward=2*2*config.num_kernels)
+        self_attn_layers = nn.TransformerEncoderLayer(d_model=2*2*config.num_kernels, nhead=config.num_sa_heads)
         self.self_attn = nn.TransformerEncoder(self_attn_layers, config.num_sa_layers)
 
         self.value_net = nn.Sequential(
