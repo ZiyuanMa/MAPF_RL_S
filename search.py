@@ -51,11 +51,6 @@ def compute_heuristics(my_map, goal):
 
 
 def build_constraint_table(constraints, agent):
-    ##############################
-    # Task 1.2/1.3: Return a table that constains the list of constraints of
-    #               the given agent for each time step. The table can be used
-    #               for a more efficient constraint violation check in the 
-    #               is_constrained function.
 
     table = {}
     for const in constraints:
@@ -96,10 +91,6 @@ def get_path(goal_node):
 
 
 def is_constrained(curr_loc, next_loc, next_time, constraint_table):
-    ##############################
-    # Task 1.2/1.3: Check if a move from curr_loc to next_loc at time step next_time violates
-    #               any given constraint. For efficiency the constraints are indexed in a constraint_table
-    #               by time step, see build_constraint_table.
 
     if not constraint_table:
         return False
@@ -153,9 +144,6 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
         constraints - constraints defining where robot should or cannot go at each timestep
     """
 
-    ##############################
-    # Task 1.1: Extend the A* search to search in the space-time domain
-    #           rather than space domain, only.
 
     table = build_constraint_table(constraints, agent)
 
@@ -224,19 +212,8 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
     return None  # Failed to find solutions
 
 
-
-
-####################
-#   Higher  Order  #
-####################
-
 def detect_collision(path1, path2):
-    ##############################
-    # Task 3.1: Return the first collision that occurs between two robot paths (or None if there is no collision)
-    #           There are two types of collisions: vertex collision and edge collision.
-    #           A vertex collision occurs if both robots occupy the same location at the same timestep
-    #           An edge collision occurs if the robots swap their location at the same timestep.
-    #           You should use "get_location(path, t)" to get the location of a robot at time t.
+
     length = max(len(path1), len(path2))
     
     for i in range(length):
@@ -258,11 +235,6 @@ def detect_collision(path1, path2):
 
 
 def detect_collisions(paths):
-    ##############################
-    # Task 3.1: Return a list of first collisions between all robot pairs.
-    #           A collision can be represented as dictionary that contains the id of the two robots, the vertex or edge
-    #           causing the collision, and the timestep at which the collision occurred.
-    #           You should use your detect_collision function to find a collision between two robots.
 
     collisions = []
     for i in range(len(paths)):
@@ -278,15 +250,7 @@ def detect_collisions(paths):
 
 
 def disjoint_splitting(collision):
-    ##############################
-    # Task 4.1: Return a list of (two) constraints to resolve the given collision
-    #           Vertex collision: the first constraint enforces one agent to be at the specified location at the
-    #                            specified timestep, and the second constraint prevents the same agent to be at the
-    #                            same location at the timestep.
-    #           Edge collision: the first constraint enforces one agent to traverse the specified edge at the
-    #                          specified timestep, and the second constraint prevents the same agent to traverse the
-    #                          specified edge at the specified timestep
-    #           Choose the agent randomly
+
     assert len(collision['loc']) == 1 or len(collision['loc']) == 2, 'number of collision location out of range'
 
 
@@ -337,12 +301,12 @@ class CBSSolver(object):
 
     def push_node(self, node):
         heapq.heappush(self.open_list, (node['cost'], len(node['collisions']), self.num_of_generated, node))
-        # print("Generate node {}".format(self.num_of_generated))
+
         self.num_of_generated += 1
 
     def pop_node(self):
-        _, _, id, node = heapq.heappop(self.open_list)
-        # print("Expand node {}".format(id))
+        _, _, _, node = heapq.heappop(self.open_list)
+
         self.num_of_expanded += 1
         return node
 
@@ -374,14 +338,6 @@ class CBSSolver(object):
         self.push_node(root)
 
 
-        ##############################
-        # Task 3.3: High-Level Search
-        #           Repeat the following as long as the open list is not empty:
-        #             1. Get the next node from the open list (you can use self.pop_node()
-        #             2. If this node has no collision, return solution
-        #             3. Otherwise, choose the first collision and convert to a list of constraints (using your
-        #                standard_splitting function). Add a new child node to your open list for each constraint
-        #           Ensure to create a copy of any objects that your child nodes might inherit
         while self.open_list:
             P = self.pop_node()
             # for collision in P['collisions']:
@@ -427,8 +383,7 @@ class CBSSolver(object):
                     Q['collisions'] = detect_collisions(Q['paths'])
                     Q['cost'] = get_sum_of_cost(Q['paths'])
                     self.push_node(Q)
-        # print(root)
-        # self.print_results(root)
+
         return root['paths']
 
 
@@ -440,16 +395,3 @@ class CBSSolver(object):
         print("Expanded nodes:  {}".format(self.num_of_expanded))
         print("Generated nodes: {}".format(self.num_of_generated))
 
-if __name__ == '__main__':
-    map = [
-        [True, True, True, True],
-        [False, False, False, False],
-        [True, True, False, True],
-    ]
-
-    agents_pos = [(1,0), (1,3)]
-    goals_pos = [(1, 3), (1,0)]
-
-    solver = CBSSolver(map, agents_pos, goals_pos)
-    path = solver.find_solution()
-    print(path)

@@ -12,6 +12,8 @@ from tqdm import tqdm
 import random
 import time
 
+action_list = np.array([[0, 0],[-1, 0],[1, 0],[0, -1],[0, 1]], dtype=np.int8)
+
 class Play(mp.Process):
 
     def __init__(self, num_agents, global_net, train_queue):
@@ -35,15 +37,8 @@ class Play(mp.Process):
             # print(self.env.agents_pos)
             # print(self.env.goals)
             if random.random() < 0.5:
-                temp_map = np.copy(self.env.map)
-                map = []
-                for i, row in enumerate(temp_map):
-                    map.append([])
-                    for grid in row:
-                        if grid == 0:
-                            map[i].append(False)
-                        else:
-                            map[i].append(True)
+                map = (np.copy(self.env.map)==1).tolist()
+
                 
                 temp_agents_pos = np.copy(self.env.agents_pos)
                 agents_pos= []
@@ -68,45 +63,45 @@ class Play(mp.Process):
                 for step in range(1, max_len):
                     actions = []
 
-                    direction = np.array(list(paths[0][step])) - np.array(list(paths[0][step-1]))
-
-                    if np.array_equal(direction, np.array([0, 0])):
+                    direction = np.asarray(paths[0][step]) - np.asarray(paths[0][step-1])
+                    
+                    if np.array_equal(direction, action_list[0]):
                         actions.append(0)
-                    elif np.array_equal(direction, np.array([-1, 0])):
+                    elif np.array_equal(direction, action_list[1]):
                         actions.append(1)
-                    elif np.array_equal(direction, np.array([1, 0])):
+                    elif np.array_equal(direction, action_list[2]):
                         actions.append(2)
-                    elif np.array_equal(direction, np.array([0, -1])):
+                    elif np.array_equal(direction, action_list[3]):
                         actions.append(3)
-                    elif np.array_equal(direction, np.array([0, 1])):
+                    elif np.array_equal(direction, action_list[4]):
                         actions.append(4)
 
 
-                    direction = np.array(list(paths[1][step])) - np.array(list(paths[1][step-1]))
-
-                    if np.array_equal(direction, np.array([0, 0])):
+                    direction = np.asarray(paths[1][step]) - np.asarray(paths[1][step-1])
+                    
+                    if np.array_equal(direction, action_list[0]):
                         actions.append(0)
-                    elif np.array_equal(direction, np.array([-1, 0])):
+                    elif np.array_equal(direction, action_list[1]):
                         actions.append(1)
-                    elif np.array_equal(direction, np.array([1, 0])):
+                    elif np.array_equal(direction, action_list[2]):
                         actions.append(2)
-                    elif np.array_equal(direction, np.array([0, -1])):
+                    elif np.array_equal(direction, action_list[3]):
                         actions.append(3)
-                    elif np.array_equal(direction, np.array([0, 1])):
+                    elif np.array_equal(direction, action_list[4]):
                         actions.append(4)
 
 
-                    direction = np.array(list(paths[2][step])) - np.array(list(paths[2][step-1]))
-
-                    if np.array_equal(direction, np.array([0, 0])):
+                    direction = np.asarray(paths[2][step]) - np.asarray(paths[2][step-1])
+                    
+                    if np.array_equal(direction, action_list[0]):
                         actions.append(0)
-                    elif np.array_equal(direction, np.array([-1, 0])):
+                    elif np.array_equal(direction, action_list[1]):
                         actions.append(1)
-                    elif np.array_equal(direction, np.array([1, 0])):
+                    elif np.array_equal(direction, action_list[2]):
                         actions.append(2)
-                    elif np.array_equal(direction, np.array([0, -1])):
+                    elif np.array_equal(direction, action_list[3]):
                         actions.append(3)
-                    elif np.array_equal(direction, np.array([0, 1])):
+                    elif np.array_equal(direction, action_list[4]):
                         actions.append(4)
 
                     done = self.env.step(actions)
