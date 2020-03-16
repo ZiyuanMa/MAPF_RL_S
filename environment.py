@@ -165,7 +165,10 @@ class Environment:
         # assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
 
         if np.unique(self.agents_pos, axis=0).shape[0] < self.num_agents:
+            print(self.steps)
             print(self.map)
+            print(self.history.agents_pos[-2])
+            print(self.history.actions[-1])
             print(self.agents_pos)
             raise RuntimeError('unique')
 
@@ -208,26 +211,44 @@ class Environment:
                 check_id.remove(agent_id)
 
             
-            
-        for agent_id in check_id.copy():
-            
-            if len(*np.where(np.all(next_pos==next_pos[agent_id], axis=1))) > 1:
-                # collide agent
+        
 
-                collide_agent_id = np.where(np.all(next_pos==next_pos[agent_id], axis=1))[0].tolist()
-                collide_agent_id = [ id for id in collide_agent_id if id in check_id]
-                next_pos[collide_agent_id] = self.agents_pos[collide_agent_id]
-                rewards[collide_agent_id] = config.collision_reward
+        flag = False
+        while not flag:
+            
+            flag = True
+            for agent_id in check_id.copy():
+                
+                if len(*np.where(np.all(next_pos==next_pos[agent_id], axis=1))) > 1:
+                    # collide agent
 
-            elif np.any(np.all(next_pos[agent_id]==self.agents_pos, axis=1)):
-                # agent swap
-                target_agent_id = np.where(np.all(next_pos[agent_id]==self.agents_pos, axis=1))
-                assert len(target_agent_id) == 1, 'target > 1'
-                if np.array_equal(next_pos[target_agent_id], self.agents_pos[agent_id]):
-                    next_pos[agent_id] = self.agents_pos[agent_id]
-                    rewards[agent_id] = config.collision_reward
-                    next_pos[target_agent_id] = self.agents_pos[target_agent_id]
-                    rewards[target_agent_id] = config.collision_reward
+                    collide_agent_id = np.where(np.all(next_pos==next_pos[agent_id], axis=1))[0].tolist()
+                    collide_agent_id = [ id for id in collide_agent_id if id in check_id]
+                    next_pos[collide_agent_id] = self.agents_pos[collide_agent_id]
+                    rewards[collide_agent_id] = config.collision_reward
+
+                    for id in collide_agent_id:
+                        check_id.remove(id)
+
+                    flag = False
+                    break
+
+                elif np.any(np.all(next_pos[agent_id]==self.agents_pos, axis=1)):
+                    # agent swap
+
+                    target_agent_id = np.where(np.all(next_pos[agent_id]==self.agents_pos, axis=1))
+                    assert len(target_agent_id) == 1, 'target > 1'
+
+                    if np.array_equal(next_pos[target_agent_id], self.agents_pos[agent_id]):
+                        assert target_agent_id in check_id, 'not in check'
+                        next_pos[agent_id] = self.agents_pos[agent_id]
+                        rewards[agent_id] = config.collision_reward
+                        next_pos[target_agent_id] = self.agents_pos[target_agent_id]
+                        rewards[target_agent_id] = config.collision_reward
+                        check_id.remove(agent_id)
+                        check_id.remove(target_agent_id)
+                        flag = False
+                        break
 
 
         self.agents_pos = np.copy(next_pos)

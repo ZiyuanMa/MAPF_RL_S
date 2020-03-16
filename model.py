@@ -4,6 +4,25 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+
+
+class SelfAttention(nn.Module):
+    def __init__(self, d_model):
+        super().__init__()
+
+        self.self_attn = nn.MultiheadAttention(d_model, config.num_sa_heads)
+        self.norm = nn.LayerNorm(d_model)
+        
+
+    def forward(self, src, src_mask=None, src_key_padding_mask=None):
+
+        src2 = self.self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
+        src = src + src2
+        src = self.norm(src)
+
+        return src
+
+
 class Network(nn.Module):
     def __init__(self):
         super().__init__()
@@ -20,8 +39,8 @@ class Network(nn.Module):
 
         self.flatten = nn.Flatten()
 
-        self_attn_layers = nn.TransformerEncoderLayer(d_model=2*2*config.num_kernels, nhead=config.num_sa_heads)
-        self.self_attn = nn.TransformerEncoder(self_attn_layers, config.num_sa_layers)
+        self.self_attn1 = SelfAttention(2*2*config.num_kernels)
+        self.self_attn2 = SelfAttention(2*2*config.num_kernels)
 
         self.value_net = nn.Sequential(
             nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
@@ -53,7 +72,8 @@ class Network(nn.Module):
         if seq_mask is not None:
 
             x = x.view(seq_mask.size()[1], seq_mask.size()[0], 2*2*config.num_kernels)
-            x = self.self_attn(x)
+            x = self.self_attn1(x)
+            x = self.self_attn2(x)
             x = x.view(seq_mask.size()[0]*seq_mask.size()[1], 2*2*config.num_kernels)
 
             value = self.value_net(x)
@@ -65,7 +85,8 @@ class Network(nn.Module):
         else:
 
             x = torch.unsqueeze(x, 1)
-            x = self.self_attn(x)
+            x = self.self_attn1(x)
+            x = self.self_attn2(x)
             x = torch.squeeze(x, 1)
 
             value = self.value_net(x)
