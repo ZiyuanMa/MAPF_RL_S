@@ -23,7 +23,7 @@ num_sa_layers = 4
 
 
 # training setting
-training_steps = 2000
+training_steps = 1000
 checkpoint = training_steps // 5
 update_steps = 10
 batch_size = 10000
