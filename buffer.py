@@ -100,10 +100,9 @@ class ReplayBuffer(Dataset):
         done = np.ones(1, dtype=np.float32)
         cumu_reward = np.zeros(history.num_agents, dtype=np.float32)
         post_state = np.copy(state)
-        if len(history) < 100:
-            td_steps = np.array([config.TD_steps], dtype=np.float32)
-        else:
-            td_steps = np.array([1], dtype=np.float32)
+
+        td_steps = np.array([config.TD_steps], dtype=np.float32)
+
         for i in range(config.TD_steps):
             if step_idx + i < len(history):
                 post_state, _, reward = history[step_idx+i]

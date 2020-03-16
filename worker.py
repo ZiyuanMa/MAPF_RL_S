@@ -53,6 +53,9 @@ class Play(mp.Process):
                 solver  =  CBSSolver(map, agents_pos, goals_pos)
                 paths = solver.find_solution()
 
+                if len(paths[0]) == 1:
+                    continue
+
                 max_len = max([len(path) for path in paths])
 
                 for path in paths:
@@ -116,6 +119,10 @@ class Play(mp.Process):
                     #         print(actions)
                     #         print(self.env.history.rewards[-1])
                 if not done:
+                    print(self.env.map)
+                    print(paths)
+                    print(self.env.history.actions)
+                    print(self.env.history.agents_pos)
                     raise RuntimeError('not done')
 
 
@@ -179,31 +186,22 @@ class Train(mp.Process):
 
     def run(self):
         while self.steps < config.training_steps:
-            # receive = 300000
-            # self.train_lock.set()
-            # pbar = tqdm(total=receive)
+
             t = time.time()
             count = 0
             temp_buffer = list()
-            while not self.train_queue.empty():
-                history = self.train_queue.get_nowait()
-                # pbar.update(min(len(history),receive))
-                # receive -= len(history)
+            while count <= 5000:
+            # while not self.train_queue.empty():
+                history = self.train_queue.get()
                 count += len(history)
                 temp_buffer.append(history)
-                if count > 50000:
-                    break
 
 
             self.buffer.multi_push(temp_buffer)
 
 
             print('push: '+str(count))
-            if count == 0:
-                time.sleep(1)
 
-            # self.train_lock.clear()
-            # pbar.close()
             
             sample_data = self.buffer.sample(config.batch_size)
             if sample_data is None:
@@ -260,8 +258,8 @@ def update_network(train_net, target_net, optimizer, loader):
         # q_val = torch.masked_select(q_val, mask==False)
 
         # clip
-        # with torch.no_grad():
-        #     target =  q_val + torch.clamp(target-q_val, -1, 1)
+        with torch.no_grad():
+            target =  q_val + torch.clamp(target-q_val, -1, 1)
 
         l = ((target - q_val) ** 2).mean()
         l.backward()
