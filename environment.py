@@ -49,6 +49,16 @@ class History:
         self.rewards = np.concatenate((self.rewards, np.expand_dims(rewards, axis=0)))
         self.steps += 1
 
+    def observe(self, index):
+
+        obs = np.zeros((self.num_agents, 3, *config.env_size), dtype=np.float32)
+        for i in range(self.num_agents):
+            obs[i,0,:,:][tuple(self.agents_pos[index][i])] = 1
+            obs[i,1,:,:][tuple(self.goals_pos[i])] = 1
+            obs[i,2,:,:] = np.copy(self.environment)
+
+        return obs
+
     def done(self):
         if np.all(self.agents_pos[-1,:,:] == self.goals_pos):
             return True

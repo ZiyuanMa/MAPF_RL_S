@@ -97,23 +97,28 @@ class ReplayBuffer(Dataset):
 
         state, action, _ = history[step_idx]
 
-        done = np.ones(1, dtype=np.float32)
-        cumu_reward = np.zeros(history.num_agents, dtype=np.float32)
-        post_state = np.copy(state)
+        if step_idx + config.TD_steps >= len(history) and history.done():
 
-        td_steps = np.array([config.TD_steps], dtype=np.float32)
+            done = np.array([0], dtype=np.float32)
+
+        else:
+
+            done = np.array([1], dtype=np.float32)
+
+        sum_reward = np.zeros(history.num_agents, dtype=np.float32)
+        post_state = history.observe(min(len(history), step_idx+config.TD_steps))
+
+        td_steps = np.array([min(len(history)-step_idx, config.TD_steps)], dtype=np.float32)
 
         for i in range(config.TD_steps):
             if step_idx + i < len(history):
-                post_state, _, reward = history[step_idx+i]
-                cumu_reward += reward * config.gamma ** i
+                _, _, reward = history[step_idx+i]
+                sum_reward += reward * config.gamma ** i
             else:
-                if history.done():
-                    done = np.zeros(1, dtype=np.float32)
-                td_steps = np.array([i], dtype=np.float32)
+
                 break
         mask = np.zeros(history.num_agents, dtype=np.bool)
-        return torch.from_numpy(state), torch.from_numpy(action), torch.from_numpy(cumu_reward), torch.from_numpy(post_state), torch.from_numpy(done), torch.from_numpy(mask), torch.from_numpy(td_steps)
+        return torch.from_numpy(state), torch.from_numpy(action), torch.from_numpy(sum_reward), torch.from_numpy(post_state), torch.from_numpy(done), torch.from_numpy(mask), torch.from_numpy(td_steps)
 
 
     def __len__(self):
@@ -179,16 +184,16 @@ class ReplayBuffer(Dataset):
 def pad_collate(batch):
 
     # batch.sort(key= lambda x: x[2], reverse=True)
-    (state, action, cumu_reward, post_state, done, mask, td_steps) = zip(*batch)
+    (state, action, sum_reward, post_state, done, mask, td_steps) = zip(*batch)
     state = pad_sequence(state, batch_first=True)
     action = pad_sequence(action, batch_first=True)
-    cumu_reward = pad_sequence(cumu_reward, batch_first=True)
+    sum_reward = pad_sequence(sum_reward, batch_first=True)
     post_state = pad_sequence(post_state, batch_first=True)
     done = torch.stack(done)
     mask = pad_sequence(mask, batch_first=True, padding_value=1)
     td_steps = torch.stack(td_steps)
 
-    return state, action, cumu_reward, post_state, done, mask, td_steps
+    return state, action, sum_reward, post_state, done, mask, td_steps
 
 if __name__ == '__main__':
     a = np.array([1,2,3,4])
