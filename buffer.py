@@ -157,9 +157,34 @@ class MinSegmentTree(SegmentTree):
         return super(MinSegmentTree, self).reduce(start, end)
 
 
+<<<<<<< HEAD
 class ReplayBuffer(object):
     def __init__(self, size, device):
         """Create Replay buffer.
+=======
+        if step_idx + config.TD_steps >= len(history) and history.done():
+
+            done = np.array([0], dtype=np.float32)
+
+        else:
+
+            done = np.array([1], dtype=np.float32)
+
+        sum_reward = np.zeros(history.num_agents, dtype=np.float32)
+        post_state = history.observe(min(len(history), step_idx+config.TD_steps))
+
+        td_steps = np.array([min(len(history)-step_idx, config.TD_steps)], dtype=np.float32)
+
+        for i in range(config.TD_steps):
+            if step_idx + i < len(history):
+                _, _, reward = history[step_idx+i]
+                sum_reward += reward * config.gamma ** i
+            else:
+
+                break
+        mask = np.zeros(history.num_agents, dtype=np.bool)
+        return torch.from_numpy(state), torch.from_numpy(action), torch.from_numpy(sum_reward), torch.from_numpy(post_state), torch.from_numpy(done), torch.from_numpy(mask), torch.from_numpy(td_steps)
+>>>>>>> b0a12233cefacaaee2bf6335e9b300d3a126776e
 
         Parameters
         ----------
@@ -173,6 +198,7 @@ class ReplayBuffer(object):
         self._device = device
 
     def __len__(self):
+<<<<<<< HEAD
         return len(self._storage)
 
     def add(self, *args):
@@ -285,3 +311,82 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             self._it_min[idx] = priority ** self._alpha
 
             self._max_priority = max(self._max_priority, priority)
+=======
+
+        return self.size
+    
+    def push(self, history: History):
+
+        assert self.size == self.search_tree.tree[1], 'size mismatch '+str(self.size) + ' ' + str(self.search_tree.tree[1])
+
+
+        # delete if out of bound
+        while self.size >= self.buffer_size:
+            self.size -= len(self.history_list[0])
+            del self.history_list[0]
+            self.search_tree.pop()
+
+        # push
+        self.history_list.append(history)
+        self.size += len(history)
+        self.search_tree.push(len(history))
+
+    def multi_push(self, history_list: List[History]):
+
+        assert self.size == self.search_tree.tree[1], 'size mismatch '+str(self.size) + ' ' + str(self.search_tree.tree[1])
+
+        len_list = [len(history) for history in history_list]
+        sum_len = sum(len_list)
+
+        if self.size + sum_len > self.buffer_size:
+            num_del = 0
+            while self.size + sum_len > self.buffer_size:
+                self.size -= len(self.history_list[num_del])
+                num_del += 1
+
+            del self.history_list[:num_del]
+            self.search_tree.multi_pop(num_del)
+
+        for history in history_list:
+            self.history_list.append(history)
+
+        self.size += sum_len
+
+        self.search_tree.multi_push(len_list)
+
+        self.search_tree.update()
+
+
+
+    def clear(self):
+        self.size = 0
+        self.history_list.clear()
+
+
+    def sample(self, sample_size):
+        if len(self) < sample_size:
+            return None
+        indices = np.random.randint(self.size, size=sample_size)
+
+        return Subset(self, indices)
+
+
+def pad_collate(batch):
+
+    # batch.sort(key= lambda x: x[2], reverse=True)
+    (state, action, sum_reward, post_state, done, mask, td_steps) = zip(*batch)
+    state = pad_sequence(state, batch_first=True)
+    action = pad_sequence(action, batch_first=True)
+    sum_reward = pad_sequence(sum_reward, batch_first=True)
+    post_state = pad_sequence(post_state, batch_first=True)
+    done = torch.stack(done)
+    mask = pad_sequence(mask, batch_first=True, padding_value=1)
+    td_steps = torch.stack(td_steps)
+
+    return state, action, sum_reward, post_state, done, mask, td_steps
+
+if __name__ == '__main__':
+    a = np.array([1,2,3,4])
+    a[2:4] = [2,3]
+    print(a)
+>>>>>>> b0a12233cefacaaee2bf6335e9b300d3a126776e
