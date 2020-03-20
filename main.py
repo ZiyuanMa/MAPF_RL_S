@@ -1,5 +1,5 @@
 import os
-os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "2"
 from worker import Play, Train
 from model import Network
 import config
@@ -27,7 +27,7 @@ def drl():
     training_q = mp.Queue(500)
 
 
-    for _ in range(12):
+    for _ in range(5):
 
         master_p = Play(3, network, training_q)
         master_p.start()

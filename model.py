@@ -1,86 +1,17 @@
 import config
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from torch.nn.functional import log_softmax
+
 import math
 import numpy as np
 
-class NoisyLinear(nn.Module):
-    """Noisy linear module for NoisyNet.
-    
-    Attributes:
-        in_features (int): input size of linear module
-        out_features (int): output size of linear module
-        std_init (float): initial std value
-        weight_mu (nn.Parameter): mean value weight parameter
-        weight_sigma (nn.Parameter): std value weight parameter
-        bias_mu (nn.Parameter): mean value bias parameter
-        bias_sigma (nn.Parameter): std value bias parameter
-        
-    """
+class Flatten(nn.Module):
+    def __init__(self):
+        super().__init__()
 
-    def __init__(self, in_features: int, out_features: int, std_init: float = 0.5):
-        """Initialization."""
-        super(NoisyLinear, self).__init__()
-        
-        self.in_features = in_features
-        self.out_features = out_features
-        self.std_init = std_init
-
-        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
-        self.weight_sigma = nn.Parameter(
-            torch.Tensor(out_features, in_features)
-        )
-        self.register_buffer(
-            "weight_epsilon", torch.Tensor(out_features, in_features)
-        )
-
-        self.bias_mu = nn.Parameter(torch.Tensor(out_features))
-        self.bias_sigma = nn.Parameter(torch.Tensor(out_features))
-        self.register_buffer("bias_epsilon", torch.Tensor(out_features))
-
-        self.reset_parameters()
-        self.reset_noise()
-
-    def reset_parameters(self):
-        """Reset trainable network parameters (factorized gaussian noise)."""
-        mu_range = 1 / math.sqrt(self.in_features)
-        self.weight_mu.data.uniform_(-mu_range, mu_range)
-        self.weight_sigma.data.fill_(
-            self.std_init / math.sqrt(self.in_features)
-        )
-        self.bias_mu.data.uniform_(-mu_range, mu_range)
-        self.bias_sigma.data.fill_(
-            self.std_init / math.sqrt(self.out_features)
-        )
-
-    def reset_noise(self):
-        """Make new noise."""
-        epsilon_in = self.scale_noise(self.in_features)
-        epsilon_out = self.scale_noise(self.out_features)
-
-        # outer product
-        self.weight_epsilon.copy_(epsilon_out.ger(epsilon_in))
-        self.bias_epsilon.copy_(epsilon_out)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward method implementation.
-        
-        We don't use separate statements on train / eval mode.
-        It doesn't show remarkable difference of performance.
-        """
-        return F.linear(
-            x,
-            self.weight_mu + self.weight_sigma * self.weight_epsilon,
-            self.bias_mu + self.bias_sigma * self.bias_epsilon,
-        )
-    
-    @staticmethod
-    def scale_noise(size: int) -> torch.Tensor:
-        """Set scale to make noise (factorized gaussian noise)."""
-        x = torch.FloatTensor(np.random.normal(loc=0.0, scale=1.0, size=size))
-
-        return x.sign().mul(x.abs().sqrt())
+    def forward(self, x):
+        return x.contiguous().view(x.size(0), -1)
 
 
 class SelfAttention(nn.Module):
@@ -101,84 +32,77 @@ class SelfAttention(nn.Module):
 
 
 class Network(nn.Module):
-    def __init__(self):
+    def __init__(self, atom_num, dueling):
         super(Network, self).__init__()
+
+
+        self.atom_num = atom_num
+        
         self.conv_net = nn.Sequential(
-            nn.BatchNorm2d(3),
-            nn.Conv2d(config.obs_dimension, config.num_kernels, 3, 1),
-            nn.LeakyReLU(),
-            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
-            nn.LeakyReLU(),
-            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
-            nn.LeakyReLU(),
+            nn.Conv2d(3, 32, 4, 2),
+            nn.LeakyReLU(True),
+            nn.Conv2d(32, 64, 2, 1),
+            nn.LeakyReLU(True),
+            Flatten(),
 
         )
 
-        self.flatten = nn.Flatten()
 
         self.self_attn = nn.Sequential(
             SelfAttention(2*2*config.num_kernels),
             SelfAttention(2*2*config.num_kernels),
         )
 
-        self.value_net = nn.Sequential(
-            nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
-            nn.LeakyReLU(),
-
-            NoisyLinear(2*2*config.num_kernels, 2*2*config.num_kernels),
-            nn.LeakyReLU(),
-
-            NoisyLinear(2*2*config.num_kernels, 1),
+        self.q = nn.Sequential(
+            nn.Linear(256, 256),
+            nn.LeakyReLU(True),
+            nn.Linear(256, config.action_space * atom_num)
         )
+        if dueling:
+            self.state = nn.Sequential(
+                nn.Linear(256, 256),
+                nn.LeakyReLU(True),
+                nn.Linear(256, atom_num)
+            )
 
-        self.advantage_net = nn.Sequential(
-            nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
-            nn.LeakyReLU(),
+        for _, m in self.named_modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
-            NoisyLinear(2*2*config.num_kernels, 2*2*config.num_kernels),
-            nn.LeakyReLU(),
-
-            NoisyLinear(2*2*config.num_kernels, config.action_space),
-        )
     
-    def forward(self, x, seq_mask=None):
-        if len(x.size()) == 5:
-            x = x.view(-1, 3, 8, 8)
+    def forward(self, x):
 
-        x = self.conv_net(x)
-        x = self.flatten(x)
-        
-        if seq_mask is not None:
+        assert x.dim() == 5, str(x.shape)
 
-            x = x.view(seq_mask.size()[1], seq_mask.size()[0], 2*2*config.num_kernels)
-            x = self.self_attn(x)
-            x = x.view(seq_mask.size()[0]*seq_mask.size()[1], 2*2*config.num_kernels)
 
-            value = self.value_net(x)
-            adv = self.advantage_net(x)
-            q = value + adv - adv.mean(dim=-1, keepdim=True)
+        batch_size = x.size(0)
 
-            q = q.view(seq_mask.size()[0], seq_mask.size()[1], config.action_space)
+        x = x.view(-1, 3, 8, 8)
 
+        latent = self.conv_net(x)
+
+        latent = latent.view(3, batch_size, 2*2*config.num_kernels)
+        latent = self.self_attn(latent)
+        latent = latent.view(3*batch_size, 2*2*config.num_kernels)
+
+        q_val = self.q(latent)
+
+
+        if self.atom_num == 1:
+            if hasattr(self, 'state'):
+                s_val = self.state(latent)
+                qvalue = s_val + q_val - q_val.mean(1, keepdim=True)
+            return qvalue.view(batch_size, config.num_agents, config.action_space)
         else:
 
-            x = torch.unsqueeze(x, 1)
-            x = self.self_attn(x)
-            x = torch.squeeze(x, 1)
+            q_val = q_val.view(batch_size*config.num_agents, config.action_space, self.atom_num)
+            if hasattr(self, 'state'):
+                s_val = self.state(latent).unsqueeze(1)
+                q_val = s_val + q_val - q_val.mean(1, keepdim=True)
+            logprobs = log_softmax(q_val, -1)
+            return logprobs.view(batch_size, config.num_agents, config.action_space, self.atom_num)
 
-            value = self.value_net(x)
-            adv = self.advantage_net(x)
-            q = value + adv - adv.mean(dim=-1, keepdim=True)
-
-
-        return q
-
-    def reset_noise(self):
-        """Reset all noisy layers."""
-        self.value_net[2].reset_noise()
-        self.value_net[4].reset_noise()
-        self.advantage_net[2].reset_noise()
-        self.advantage_net[4].reset_noise()
 
 # if __name__ == '__main__':
 #     t = torch.rand(2, 4)

@@ -128,8 +128,8 @@ goals_position = [
 ]
 
 if __name__ == '__main__':
-    net = Network()
-    net.load_state_dict(torch.load('./model3.pth'))
+    net = Network(config.atom_num, config.dueling)
+    net.load_state_dict(torch.load('./500000.checkpoint')[0])
     net.eval()
     print('load')
     env = Environment(3)
@@ -142,8 +142,8 @@ if __name__ == '__main__':
         # self.train_lock.wait()
         env.render()
         # observe
-        obs = env.joint_observe()
-        obs = torch.from_numpy(obs)
+        obs = env.observe()
+        obs = torch.from_numpy(obs).unsqueeze(0)
 
         with torch.no_grad():
             q_vals = net(obs)
@@ -151,8 +151,9 @@ if __name__ == '__main__':
         print(q_vals)
 
 
-        actions = torch.argmax(q_vals, 1).numpy()
+        actions = torch.argmax(q_vals, 2).numpy()[0].tolist()
 
 
         print(actions)
-        done = env.step(actions)
+        _, _, done, _ = env.step(actions)
+    print('done')
