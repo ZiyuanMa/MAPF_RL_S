@@ -127,12 +127,13 @@ class Environment:
         '''
         self.num_agents = num_agents
         self.map_size = map_size
-        self.map = np.random.choice(2, self.map_size, p=[1-config.obstacle_density, config.obstacle_density]).astype(np.float32)
+        self.obstacle_density = random.choice(config.obstacle_density)
+        self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
         partition_list = map_partition(self.map)
         partition_list = [ partition for partition in partition_list if len(partition) > 1 ]
 
         while not partition_list:
-            self.map = np.random.choice(2, self.map_size, p=[1-config.obstacle_density, config.obstacle_density]).astype(np.float32)
+            self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
             partition_list = map_partition(self.map)
             partition_list = [ partition for partition in partition_list if len(partition) >= 3 ]
         
@@ -159,12 +160,13 @@ class Environment:
 
     def reset(self):
 
-        self.map = np.random.choice(2, self.map_size, p=[1-config.obstacle_density, config.obstacle_density]).astype(np.float32)
+        self.obstacle_density = random.choice(config.obstacle_density)
+        self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
         partition_list = map_partition(self.map)
         partition_list = [ partition for partition in partition_list if len(partition) > 1 ]
 
         while not partition_list:
-            self.map = np.random.choice(2, self.map_size, p=[1-config.obstacle_density, config.obstacle_density]).astype(np.float32)
+            self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
             partition_list = map_partition(self.map)
             partition_list = [ partition for partition in partition_list if len(partition) >= 3 ]
         

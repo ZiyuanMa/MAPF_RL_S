@@ -129,11 +129,11 @@ goals_position = [
 
 if __name__ == '__main__':
     net = Network(config.atom_num, config.dueling)
-    net.load_state_dict(torch.load('./500000.checkpoint')[0])
+    net.load_state_dict(torch.load('./3000000.checkpoint')[0])
     net.eval()
     print('load')
     env = Environment(3)
-    test_case = 0
+    test_case = 1
     env.load(environment[test_case], 3, agents_position[test_case], goals_position[test_case])
 
     done = False

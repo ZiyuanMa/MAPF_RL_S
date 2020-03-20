@@ -4,17 +4,17 @@ import math
 # environment setting
 map_size = (8, 8)
 num_agents = 3
-obstacle_density = 0.15
+obstacle_density = (0, 0.1, 0.2, 0.3)
 action_space = 5
 obs_dimension = 3
 max_steps = 100
 
 # reward setting
-move_reward = -0.02
+move_reward = -0.1
 stay_on_goal_reward = 0
-stay_off_goal_reward = -0.05
+stay_off_goal_reward = -0.2
 collision_reward = -2
-finish_reward = 4
+finish_reward = 5
 
 # model setting
 num_kernels = 64

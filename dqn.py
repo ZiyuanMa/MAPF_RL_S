@@ -293,4 +293,4 @@ class Flatten(nn.Module):
 
 if __name__ == '__main__':
     env = Environment()
-    learn(env, 4000000)
+    learn(env, 10000000)

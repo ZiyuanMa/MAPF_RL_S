@@ -198,6 +198,8 @@ class ReplayBuffer(object):
                     _, _, next_reward, post_obs, done, *extras = self._storage[next_idx]
                     r += next_reward * config.gamma ** j
                     forward += 1
+                else:
+                    break
 
 
             b_o.append(obs.astype('float32'))
