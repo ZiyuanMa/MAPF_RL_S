@@ -106,7 +106,7 @@ def learn(  env, number_timesteps,
 
         # update qnet
         if n_iter > learning_starts and n_iter % train_freq == 0:
-            b_o, b_a, b_r, b_o_, b_d, *extra = buffer.sample(batch_size)
+            b_o, b_a, b_r, b_o_, b_d, b_steps, *extra = buffer.sample(batch_size)
 
             b_o.mul_(ob_scale)
             b_o_.mul_(ob_scale)
@@ -125,7 +125,7 @@ def learn(  env, number_timesteps,
                 b_q = qnet(b_o).gather(2, b_a)
 
                 b_r = b_r.unsqueeze(2)
-                abs_td_error = (b_q - (b_r + gamma * b_q_)).abs()
+                abs_td_error = (b_q - (b_r + (gamma ** b_steps).unsqueeze(2) * b_q_)).abs()
 
                 
                 priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()

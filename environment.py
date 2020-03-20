@@ -228,7 +228,7 @@ class Environment:
 
         check_id = [i for i in range(self.num_agents)]
 
-        rewards = [ None for _ in range(self.num_agents) ]
+        rewards = np.empty(self.num_agents, dtype=np.float32)
 
         # remove no movement agent id
         for agent_id in check_id.copy():
@@ -252,8 +252,6 @@ class Environment:
             next_pos[agent_id] += action_list[actions[agent_id]]
 
 
-
-
         for agent_id in check_id.copy():
 
             # move
@@ -272,8 +270,6 @@ class Environment:
                 check_id.remove(agent_id)
                 done = True
 
-            
-        
 
         flag = False
         while not flag:
@@ -326,13 +322,12 @@ class Environment:
 
         # check done
         if np.all(self.agents_pos==self.goals_pos):
-            rewards = np.ones(self.num_agents) * config.finish_reward
+            rewards = np.ones(self.num_agents, dtype=np.float32) * config.finish_reward
             done = True
         elif self.steps >= config.max_steps:
             done = True
 
-        print(rewards)
-        print(done)
+
         return self.observe(), rewards, done, dict()
 
 

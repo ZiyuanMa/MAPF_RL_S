@@ -24,7 +24,7 @@ num_sa_layers = 2
 
 # training setting
 
-forward_steps = 5
+forward_steps = 3
 
 
 grad_norm=10
