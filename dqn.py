@@ -12,13 +12,13 @@ import gym
 import numpy as np
 import torch
 import torch.distributions
-import torch.nn as nn
 from torch.nn.functional import softmax, log_softmax
 
 from buffer import ReplayBuffer, PrioritizedReplayBuffer
 from model import Network
 from environment import Environment
 import config
+from search import find_path
 
 torch.manual_seed(0x5A31)
 np.random.seed(0x5A31)
@@ -204,53 +204,64 @@ def _generate(device, env, qnet, ob_scale,
 
     o = env.reset()
     
+    # if use imitation learning
+    imitation = True if random.random() < config.imitation_ratio else False
+    imitation_actions = find_path(env) if imitation else []
 
+    while imitation and imitation_actions is None:
+        o = env.reset()
+        imitation_actions = find_path(env)
 
     infos = dict()
     for n in range(1, number_timesteps + 1):
         epsilon = 1.0 - (1.0 - exploration_final_eps) * n / explore_steps
         epsilon = max(exploration_final_eps, epsilon)
 
-        # sample action
-        with torch.no_grad():
-            ob = scale_ob(np.expand_dims(o, 0), device, ob_scale)
+        if imitation:
 
-            # 1 x 3 x 3 x 8 x 8
-            q = qnet(ob)
-            # 1 x 3 x 5 or 1 x 3 x 5 x atom_num
+            a = imitation_actions.pop()
 
-            if atom_num > 1:
-                q = (q.exp() * vrange).sum(2)
-                
-            if not param_noise:
-                if random.random() < epsilon:
-                    a = np.random.randint(0, 5, size=config.num_agents).tolist()
-                else:
-                    a = q.argmax(2).cpu().numpy()[0]
-            else:
-                # see Appendix C of `https://arxiv.org/abs/1706.01905`
-                q_dict = deepcopy(qnet.state_dict())
-                for _, m in qnet.named_modules():
-                    if isinstance(m, nn.Linear):
-                        std = torch.empty_like(m.weight).fill_(noise_scale)
-                        m.weight.data.add_(torch.normal(0, std).to(device))
-                        std = torch.empty_like(m.bias).fill_(noise_scale)
-                        m.bias.data.add_(torch.normal(0, std).to(device))
-                q_perturb = qnet(ob)
+        else:
+            # sample action
+            with torch.no_grad():
+                ob = scale_ob(np.expand_dims(o, 0), device, ob_scale)
+
+                # 1 x 3 x 3 x 8 x 8
+                q = qnet(ob)
+                # 1 x 3 x 5 or 1 x 3 x 5 x atom_num
+
                 if atom_num > 1:
-                    q_perturb = (q_perturb.exp() * vrange).sum(2)
-                kl_perturb = ((log_softmax(q, 1) - log_softmax(q_perturb, 1)) *
-                              softmax(q, 1)).sum(-1).mean()
-                kl_explore = -math.log(1 - epsilon + epsilon / action_dim)
-                if kl_perturb < kl_explore:
-                    noise_scale *= 1.01
+                    q = (q.exp() * vrange).sum(2)
+                    
+                if not param_noise:
+                    if random.random() < epsilon:
+                        a = np.random.randint(0, 5, size=config.num_agents).tolist()
+                    else:
+                        a = q.argmax(2).cpu().numpy()[0]
                 else:
-                    noise_scale /= 1.01
-                qnet.load_state_dict(q_dict)
-                if random.random() < epsilon:
-                    a = int(random.random() * action_dim)
-                else:
-                    a = q_perturb.argmax(1).cpu().numpy()[0]
+                    # see Appendix C of `https://arxiv.org/abs/1706.01905`
+                    q_dict = deepcopy(qnet.state_dict())
+                    for _, m in qnet.named_modules():
+                        if isinstance(m, nn.Linear):
+                            std = torch.empty_like(m.weight).fill_(noise_scale)
+                            m.weight.data.add_(torch.normal(0, std).to(device))
+                            std = torch.empty_like(m.bias).fill_(noise_scale)
+                            m.bias.data.add_(torch.normal(0, std).to(device))
+                    q_perturb = qnet(ob)
+                    if atom_num > 1:
+                        q_perturb = (q_perturb.exp() * vrange).sum(2)
+                    kl_perturb = ((log_softmax(q, 1) - log_softmax(q_perturb, 1)) *
+                                    softmax(q, 1)).sum(-1).mean()
+                    kl_explore = -math.log(1 - epsilon + epsilon / action_dim)
+                    if kl_perturb < kl_explore:
+                        noise_scale *= 1.01
+                    else:
+                        noise_scale /= 1.01
+                    qnet.load_state_dict(q_dict)
+                    if random.random() < epsilon:
+                        a = int(random.random() * action_dim)
+                    else:
+                        a = q_perturb.argmax(1).cpu().numpy()[0]
 
         # take action in env
         o_, r, done, info = env.step(a)
@@ -271,6 +282,13 @@ def _generate(device, env, qnet, ob_scale,
             o = o_ 
         else:
             o = env.reset()
+
+            imitation = True if random.random() < config.imitation_ratio else False
+            imitation_actions = find_path(env) if imitation else []
+
+            while imitation and imitation_actions is None:
+                o = env.reset()
+                imitation_actions = find_path(env)
             
 
 

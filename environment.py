@@ -21,61 +21,16 @@ def observe(environment, num_agents, agents_pos, goals_pos):
 
     return obs
 
-class History:
-    def __init__(self, environment, num_agents, agents_pos, goals_pos):
-        self.environment = environment
-        self.num_agents = num_agents
-        self.goals_pos = goals_pos
-        self.agents_pos = np.expand_dims(agents_pos, axis=0)
-        self.actions = np.array([], dtype=np.int).reshape(0,num_agents)
-        self.rewards = np.array([], dtype=np.float32).reshape(0,num_agents)
-        self.steps = 0
-
-    # @property
-    # def num_agents(self):
-    #     return self.num_agents
-
-    def __len__(self):
-
-        return self.steps
-
-    def __getitem__(self, index):
-
-        assert index < self.steps, 'step index out of history length'
-        # print(self.rewards[index])
-        return observe(self.environment, self.num_agents, self.agents_pos[index], self.goals_pos), np.copy(self.actions[index]), np.copy(self.rewards[index])
-
-    def push(self, agents_pos, actions, rewards):
-        self.agents_pos = np.concatenate((self.agents_pos, np.expand_dims(agents_pos, axis=0)))
-        self.actions = np.concatenate((self.actions, np.expand_dims(actions, axis=0)))
-        self.rewards = np.concatenate((self.rewards, np.expand_dims(rewards, axis=0)))
-        self.steps += 1
-
-    def observe(self, index):
-
-        obs = np.zeros((self.num_agents, 3, *config.env_size), dtype=np.float32)
-        for i in range(self.num_agents):
-            obs[i,0,:,:][tuple(self.agents_pos[index][i])] = 1
-            obs[i,1,:,:][tuple(self.goals_pos[i])] = 1
-            obs[i,2,:,:] = np.copy(self.environment)
-
-        return obs
-
-    def done(self):
-        if np.all(self.agents_pos[-1,:,:] == self.goals_pos):
-            return True
-        else:
-            return False
 
 
 def map_partition(map):
 
-    empty_pos = np.argwhere(map==0).astype(np.int8).tolist()
+    empty_pos = np.argwhere(map==0).astype(np.int).tolist()
 
     empty_pos = [ tuple(pos) for pos in empty_pos]
 
     if not empty_pos:
-        raise RuntimeError('no empty pos')
+        raise RuntimeError('no empty position')
 
     partition_list = list()
     while empty_pos:
@@ -95,7 +50,7 @@ def map_partition(map):
                 open_list.append(up)
             
             down = (pos[0]+1, pos[1])
-            if down[0] <= 7 and map[down]==0 and down in empty_pos:
+            if down[0] < map.shape[0] and map[down]==0 and down in empty_pos:
                 empty_pos.remove(down)
                 open_list.append(down)
             
@@ -105,7 +60,7 @@ def map_partition(map):
                 open_list.append(left)
             
             right = (pos[0], pos[1]+1)
-            if right[1] <= 7 and map[right]==0 and right in empty_pos:
+            if right[1] < map.shape[1] and map[right]==0 and right in empty_pos:
                 empty_pos.remove(right)
                 open_list.append(right)
 
@@ -130,12 +85,12 @@ class Environment:
         self.obstacle_density = random.choice(config.obstacle_density)
         self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
         partition_list = map_partition(self.map)
-        partition_list = [ partition for partition in partition_list if len(partition) > 1 ]
+        partition_list = [ partition for partition in partition_list if len(partition) >= 4 ]
 
         while not partition_list:
             self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
             partition_list = map_partition(self.map)
-            partition_list = [ partition for partition in partition_list if len(partition) >= 3 ]
+            partition_list = [ partition for partition in partition_list if len(partition) >= 4 ]
         
         
         self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int8)
@@ -153,7 +108,7 @@ class Environment:
             partition.remove(pos)
             self.goals_pos[i] = np.asarray(pos, dtype=np.int8)
 
-            if len(partition) >= 3:
+            if len(partition) >= 4:
                 partition_list.append(partition)
 
         self.steps = 0
@@ -163,12 +118,12 @@ class Environment:
         self.obstacle_density = random.choice(config.obstacle_density)
         self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
         partition_list = map_partition(self.map)
-        partition_list = [ partition for partition in partition_list if len(partition) > 1 ]
+        partition_list = [ partition for partition in partition_list if len(partition) >= 4 ]
 
         while not partition_list:
             self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
             partition_list = map_partition(self.map)
-            partition_list = [ partition for partition in partition_list if len(partition) >= 3 ]
+            partition_list = [ partition for partition in partition_list if len(partition) >= 4 ]
         
         
         self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int8)
@@ -186,7 +141,7 @@ class Environment:
             partition.remove(pos)
             self.goals_pos[i] = np.asarray(pos, dtype=np.int8)
 
-            if len(partition) >= 3:
+            if len(partition) >= 4:
                 partition_list.append(partition)
 
         self.steps = 0

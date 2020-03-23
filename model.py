@@ -1,6 +1,7 @@
 import config
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.functional import log_softmax
 
 import math
@@ -15,18 +16,26 @@ class Flatten(nn.Module):
 
 
 class SelfAttention(nn.Module):
-    def __init__(self, d_model):
+    def __init__(self, d_model, num_sa_layers=config.num_sa_layers, num_sa_heads=config.num_sa_heads):
         super(SelfAttention, self).__init__()
 
-        self.self_attn = nn.MultiheadAttention(d_model, config.num_sa_heads)
-        self.norm = nn.LayerNorm(d_model)
-        
+        self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) for _ in range(num_sa_layers)])
+        self.linears = nn.ModuleList([nn.Sequential(nn.Linear(d_model, d_model),
+                                                    nn.ReLU(True),
+                                                    nn.Linear(d_model, d_model),
+                                                )
+                                                    for _ in range(num_sa_layers)])
+        self.norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_sa_layers)])
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
 
-        src2 = self.self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
-        src = src + src2
-        src = self.norm(src)
+        
+        for self_attn, linear, norm in zip(self.self_attns,self.linears, self.norms):
+        
+            src_out = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
+            src_out = linear(src_out)
+            src = src + src_out
+            src = norm(src)
 
         return src
 

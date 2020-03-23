@@ -1,7 +1,10 @@
 import time as timer
 import heapq
 import random
+import numpy as np
+import config
 
+action_list = np.array([[0, 0],[-1, 0],[1, 0],[0, -1],[0, 1]], dtype=np.int8)
 
 def move(loc, dir):
     directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
@@ -27,11 +30,13 @@ def compute_heuristics(my_map, goal):
         for dir in range(4):
             child_loc = move(loc, dir)
             child_cost = cost + 1
-            if child_loc[0] < 0 or child_loc[0] >= len(my_map) \
-               or child_loc[1] < 0 or child_loc[1] >= len(my_map[0]):
+
+            if child_loc[0] < 0 or child_loc[0] >= my_map.shape[0] or child_loc[1] < 0 or child_loc[1] >= my_map.shape[1]:
                continue
-            if my_map[child_loc[0]][child_loc[1]]:
+
+            if my_map[child_loc[0]][child_loc[1]] == 1:
                 continue
+
             child = {'loc': child_loc, 'cost': child_cost}
             if child_loc in closed_list:
                 existing_node = closed_list[child_loc]
@@ -149,11 +154,9 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
 
     # max timestep in constraint table
     max_timestep = 0
-    if len(table)>0:
+    if len(table) > 0:
         max_timestep = max([ key for key in table.keys() if type(key) is int])
 
-
-    space = sum([1 for row in my_map for grid in row if not grid])
 
     open_list = []
     closed_list = dict()
@@ -172,7 +175,7 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
             return path
 
         # Task 2.4
-        if curr['timestep'] >= space + max_timestep:
+        if curr['timestep'] >= config.max_steps:
             continue
 
         for dir in range(5):
@@ -184,10 +187,10 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
                 # move
                 child_loc = move(curr['loc'], dir)
 
-            if child_loc[0] < 0 or child_loc[0] >= len(my_map) or child_loc[1] < 0 or child_loc[1] >= len(my_map[0]):
+            if child_loc[0] < 0 or child_loc[0] >= my_map.shape[0] or child_loc[1] < 0 or child_loc[1] >= my_map.shape[1]:
                 continue
 
-            if my_map[child_loc[0]][child_loc[1]]:
+            if my_map[child_loc[0]][child_loc[1]] == 1:
                 continue
                 
             if is_constrained(curr['loc'], child_loc, curr['timestep']+1, table):
@@ -289,8 +292,6 @@ class CBSSolver(object):
         self.num_of_agents = len(goals)
 
         self.num_of_generated = 0
-        self.num_of_expanded = 0
-        self.CPU_time = 0
 
         self.open_list = []
 
@@ -307,7 +308,6 @@ class CBSSolver(object):
     def pop_node(self):
         _, _, _, node = heapq.heappop(self.open_list)
 
-        self.num_of_expanded += 1
         return node
 
     def find_solution(self, disjoint=True):
@@ -327,10 +327,13 @@ class CBSSolver(object):
                 'constraints': [],
                 'paths': [],
                 'collisions': []}
+
         for i in range(self.num_of_agents):  # Find initial path for each agent
             path = a_star(self.my_map, self.starts[i], self.goals[i], self.heuristics[i], i, root['constraints'])
+
             if path is None:
                 raise BaseException('No solutions')
+
             root['paths'].append(path)
 
         root['cost'] = get_sum_of_cost(root['paths'])
@@ -348,6 +351,10 @@ class CBSSolver(object):
 
             collision = random.choice(P['collisions'])
             constraints = disjoint_splitting(collision)
+
+
+            if timer.time() - self.start_time > 1:
+                return None
 
             for constraint in constraints:
                 Q = dict()
@@ -387,11 +394,57 @@ class CBSSolver(object):
         return root['paths']
 
 
-    def print_results(self, node):
-        print("\n Found a solution! \n")
-        CPU_time = timer.time() - self.start_time
-        print("CPU time (s):    {:.2f}".format(CPU_time))
-        print("Sum of costs:    {}".format(get_sum_of_cost(node['paths'])))
-        print("Expanded nodes:  {}".format(self.num_of_expanded))
-        print("Generated nodes: {}".format(self.num_of_generated))
+def find_path(env):
+    
+    map = np.copy(env.map)
+                
+    temp_agents_pos = np.copy(env.agents_pos)
+    agents_pos= []
+    for pos in temp_agents_pos:
+        agents_pos.append(tuple(pos))
 
+    temp_goals_pos = np.copy(env.goals_pos)
+    goals_pos = []
+    for pos in temp_goals_pos:
+        goals_pos.append(tuple(pos))
+
+    solver = CBSSolver(map, agents_pos, goals_pos)
+    paths = solver.find_solution()
+
+    if paths is None:
+        return None
+
+
+    max_len = max([len(path) for path in paths])
+
+    for path in paths:
+        while len(path) < max_len:
+            path.append(path[-1])
+
+    actions = []
+
+    for step in range(1, max_len):
+        step_action = []
+
+        for i in range(env.num_agents):
+            direction = np.asarray(paths[i][step]) - np.asarray(paths[i][step-1])
+            
+            if np.array_equal(direction, action_list[0]):
+                step_action.append(0)
+            elif np.array_equal(direction, action_list[1]):
+                step_action.append(1)
+            elif np.array_equal(direction, action_list[2]):
+                step_action.append(2)
+            elif np.array_equal(direction, action_list[3]):
+                step_action.append(3)
+            elif np.array_equal(direction, action_list[4]):
+                step_action.append(4)
+            else:
+                raise RuntimeError('no action match')
+        
+        if env.num_agents == 1:
+            actions.append(step_action[0])
+        else:
+            actions.append(step_action)
+
+    return actions
