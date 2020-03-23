@@ -57,17 +57,14 @@ class Network(nn.Module):
 
         )
 
-
-        self.self_attn = nn.Sequential(
-            SelfAttention(2*2*config.num_kernels),
-            SelfAttention(2*2*config.num_kernels),
-        )
-
+        self.self_attn = SelfAttention(2*2*config.num_kernels)
+        
         self.q = nn.Sequential(
             nn.Linear(256, 256),
             nn.ReLU(True),
             nn.Linear(256, config.action_space * atom_num)
         )
+
         if dueling:
             self.state = nn.Sequential(
                 nn.Linear(256, 256),
