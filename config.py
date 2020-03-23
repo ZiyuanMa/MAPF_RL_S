@@ -28,14 +28,14 @@ forward_steps = 3
 
 
 grad_norm = 10
-batch_size = 10
+batch_size = 16
 double_q = True
-buffer_size = 100000
+buffer_size = 10000
 exploration_fraction = 0.1
 exploration_final_eps = 0.01
 train_freq = 4
 learning_starts = 10000
-save_interval = 500000
+save_interval = 1000000
 target_network_update_freq = 1000
 gamma = 0.99
 prioritized_replay = True
