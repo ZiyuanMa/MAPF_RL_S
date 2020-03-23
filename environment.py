@@ -42,7 +42,7 @@ def map_partition(map):
         close_list = list()
 
         while open_list:
-            pos = open_list.pop()
+            pos = open_list.pop(0)
 
             up = (pos[0]-1, pos[1])
             if up[0] >= 0 and map[up]==0 and up in empty_pos:
@@ -174,8 +174,6 @@ class Environment:
 
         # assert len(actions) == self.num_agents, 'actions number'
         # assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
-
-        done = False
         
         if np.unique(self.agents_pos, axis=0).shape[0] < self.num_agents:
             print(self.steps)
@@ -206,6 +204,7 @@ class Environment:
         next_pos = np.copy(self.agents_pos)
 
         for agent_id in check_id:
+
             next_pos[agent_id] += action_list[actions[agent_id]]
 
 
@@ -218,14 +217,13 @@ class Environment:
                 rewards[agent_id] = config.collision_reward
                 next_pos[agent_id] = self.agents_pos[agent_id]
                 check_id.remove(agent_id)
-                done = True
 
             elif self.map[tuple(next_pos[agent_id])] == 1:
                 # collide obstacle
                 rewards[agent_id] = config.collision_reward
                 next_pos[agent_id] = self.agents_pos[agent_id]
                 check_id.remove(agent_id)
-                done = True
+
 
 
         flag = False
@@ -247,7 +245,6 @@ class Environment:
                         check_id.remove(id)
 
                     flag = False
-                    done = True
                     break
 
                 elif np.any(np.all(next_pos[agent_id]==self.agents_pos, axis=1)):
@@ -269,7 +266,6 @@ class Environment:
                         check_id.remove(target_agent_id)
 
                         flag = False
-                        done = True
                         break
 
 
@@ -278,11 +274,14 @@ class Environment:
         self.steps += 1
 
         # check done
+
         if np.all(self.agents_pos==self.goals_pos):
             rewards = np.ones(self.num_agents, dtype=np.float32) * config.finish_reward
             done = True
         elif self.steps >= config.max_steps:
             done = True
+        else:
+            done = False
 
 
         return self.observe(), rewards, done, dict()

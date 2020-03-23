@@ -89,9 +89,9 @@ class Network(nn.Module):
 
         latent = self.conv_net(x)
 
-        latent = latent.view(3, batch_size, 2*2*config.num_kernels)
+        latent = latent.view(config.num_agents, batch_size, 2*2*config.num_kernels)
         latent = self.self_attn(latent)
-        latent = latent.view(3*batch_size, 2*2*config.num_kernels)
+        latent = latent.view(config.num_agents*batch_size, 2*2*config.num_kernels)
 
         q_val = self.q(latent)
 

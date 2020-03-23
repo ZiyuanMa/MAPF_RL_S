@@ -20,9 +20,9 @@ from environment import Environment
 import config
 from search import find_path
 
-torch.manual_seed(0x5A31)
-np.random.seed(0x5A31)
-random.seed(0x5A31)
+torch.manual_seed(0)
+np.random.seed(0)
+random.seed(0)
 
 
 
@@ -30,7 +30,7 @@ random.seed(0x5A31)
 
 
 def learn(  env, number_timesteps,
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'), save_path='./', save_interval=config.save_interval,
+            device = torch.device('cpu'), save_path='./models', save_interval=config.save_interval,
             ob_scale=config.ob_scale, gamma=config.gamma, grad_norm=config.grad_norm, double_q=config.double_q,
             param_noise=config.param_noise, dueling=config.dueling, exploration_fraction=config.exploration_fraction,
             exploration_final_eps=config.exploration_final_eps, batch_size=config.batch_size, train_freq=config.train_freq,
@@ -212,14 +212,20 @@ def _generate(device, env, qnet, ob_scale,
         o = env.reset()
         imitation_actions = find_path(env)
 
+
     infos = dict()
     for n in range(1, number_timesteps + 1):
         epsilon = 1.0 - (1.0 - exploration_final_eps) * n / explore_steps
         epsilon = max(exploration_final_eps, epsilon)
 
         if imitation:
+            # if not imitation_actions:
+            #     print(env.map)
+            # print(env.agents_pos)
+            # print(env.goals_pos)
 
-            a = imitation_actions.pop()
+            a = imitation_actions.pop(0)
+            # print(a)
 
         else:
             # sample action
@@ -265,6 +271,7 @@ def _generate(device, env, qnet, ob_scale,
 
         # take action in env
         o_, r, done, info = env.step(a)
+        # print(r)
         
 
         if info.get('episode'):
@@ -289,6 +296,12 @@ def _generate(device, env, qnet, ob_scale,
             while imitation and imitation_actions is None:
                 o = env.reset()
                 imitation_actions = find_path(env)
+
+            # if imitation:
+            #     print(env.map)
+            #     print(env.agents_pos)
+            #     print(env.goals_pos)
+            #     print(imitation_actions)
             
 
 

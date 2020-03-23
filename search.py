@@ -34,7 +34,7 @@ def compute_heuristics(my_map, goal):
             if child_loc[0] < 0 or child_loc[0] >= my_map.shape[0] or child_loc[1] < 0 or child_loc[1] >= my_map.shape[1]:
                continue
 
-            if my_map[child_loc[0]][child_loc[1]] == 1:
+            if my_map[child_loc[0], child_loc[1]] == 1:
                 continue
 
             child = {'loc': child_loc, 'cost': child_cost}
@@ -190,7 +190,7 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
             if child_loc[0] < 0 or child_loc[0] >= my_map.shape[0] or child_loc[1] < 0 or child_loc[1] >= my_map.shape[1]:
                 continue
 
-            if my_map[child_loc[0]][child_loc[1]] == 1:
+            if my_map[child_loc[0], child_loc[1]] == 1:
                 continue
                 
             if is_constrained(curr['loc'], child_loc, curr['timestep']+1, table):
