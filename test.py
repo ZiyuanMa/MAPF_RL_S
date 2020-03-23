@@ -143,7 +143,7 @@ def create_test():
     tests = {'maps': [], 'agents': [], 'goals': [], 'rewards': []}
 
     for _ in range(100):
-        env = Environment(random.choice(config.obstacle_density))
+        env = Environment()
         tests['maps'].append(np.copy(env.map))
         tests['agents'].append(np.copy(env.agents_pos))
         tests['goals'].append(np.copy(env.goals_pos))
@@ -152,7 +152,7 @@ def create_test():
         sum_reward = 0
         for action in actions:
             _, reward, _, _ = env.step(action)
-            sum_reward += sum(reward)
+            sum_reward += sum(reward) / env.num_agents
 
         tests['rewards'].append(sum_reward)
 
@@ -261,4 +261,4 @@ def test_model():
 
 if __name__ == '__main__':
 
-    
+    create_test()
