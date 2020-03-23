@@ -212,11 +212,11 @@ class ReplayBuffer(object):
                 b_extras[j].append(extra)
         res = (
             torch.from_numpy(np.asarray(b_o)).to(self._device),
-            torch.from_numpy(np.asarray(b_a)).to(self._device).long(),
-            torch.from_numpy(np.asarray(b_r)).to(self._device).float(),
+            torch.LongTensor(b_a).to(self._device),
+            torch.FloatTensor(b_r).to(self._device),
             torch.from_numpy(np.asarray(b_o_)).to(self._device),
-            torch.from_numpy(np.asarray(b_d)).to(self._device).float(),
-            torch.from_numpy(np.asarray(b_steps)).to(self._device).float(),
+            torch.FloatTensor(b_d).to(self._device),
+            torch.FloatTensor(b_steps).to(self._device),
         ) + tuple(
             torch.from_numpy(np.asarray(b_extra)).to(self._device).float()
             for b_extra in b_extras
