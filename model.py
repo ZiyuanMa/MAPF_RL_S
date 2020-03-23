@@ -24,13 +24,14 @@ class SelfAttention(nn.Module):
                                                     nn.ReLU(True),
                                                     nn.Linear(d_model, d_model),
                                                 )
-                                                    for _ in range(num_sa_layers)])
+
+                                                for _ in range(num_sa_layers)])
         self.norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_sa_layers)])
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
 
         
-        for self_attn, linear, norm in zip(self.self_attns,self.linears, self.norms):
+        for self_attn, linear, norm in zip(self.self_attns, self.linears, self.norms):
         
             src_out = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
             src_out = linear(src_out)
@@ -49,9 +50,9 @@ class Network(nn.Module):
         
         self.conv_net = nn.Sequential(
             nn.Conv2d(3, 32, 4, 2),
-            nn.LeakyReLU(True),
+            nn.ReLU(True),
             nn.Conv2d(32, 64, 2, 1),
-            nn.LeakyReLU(True),
+            nn.ReLU(True),
             Flatten(),
 
         )
@@ -64,13 +65,13 @@ class Network(nn.Module):
 
         self.q = nn.Sequential(
             nn.Linear(256, 256),
-            nn.LeakyReLU(True),
+            nn.ReLU(True),
             nn.Linear(256, config.action_space * atom_num)
         )
         if dueling:
             self.state = nn.Sequential(
                 nn.Linear(256, 256),
-                nn.LeakyReLU(True),
+                nn.ReLU(True),
                 nn.Linear(256, atom_num)
             )
 
