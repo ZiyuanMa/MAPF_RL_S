@@ -57,7 +57,7 @@ class Network(nn.Module):
 
         )
 
-        self.self_attn = SelfAttention(2*2*config.num_kernels)
+        self.self_attn = SelfAttention(256)
         
         self.q = nn.Sequential(
             nn.Linear(256, 256),

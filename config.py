@@ -17,7 +17,6 @@ collision_reward = -0.5
 finish_reward = 5
 
 # model setting
-num_kernels = 64
 num_sa_heads = 4
 num_sa_layers = 2
 
