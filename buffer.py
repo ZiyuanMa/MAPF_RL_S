@@ -185,7 +185,7 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
-        b_o, b_a, b_r, b_o_, b_d, b_steps = [], [], [], [], [], []
+        b_obs, b_action, b_reward, b_post_obs, b_done, b_steps = [], [], [], [], [], []
         b_extras = [[] for _ in range(len(self._storage[0]) - 5)]
         for i in idxes:
             obs, a, r, post_obs, done, *extras = self._storage[i]
@@ -202,20 +202,20 @@ class ReplayBuffer(object):
                     break
 
 
-            b_o.append(obs.astype('float32'))
-            b_a.append(a)
-            b_r.append(r)
-            b_o_.append(post_obs.astype('float32'))
-            b_d.append(done)
+            b_obs.append(obs.astype('float32'))
+            b_action.append(a)
+            b_reward.append(r)
+            b_post_obs.append(post_obs.astype('float32'))
+            b_done.append(done)
             b_steps.append([forward])
             for j, extra in enumerate(extras):
                 b_extras[j].append(extra)
         res = (
-            torch.from_numpy(np.asarray(b_o)).to(self._device),
-            torch.LongTensor(b_a).to(self._device),
-            torch.FloatTensor(b_r).to(self._device),
-            torch.from_numpy(np.asarray(b_o_)).to(self._device),
-            torch.FloatTensor(b_d).to(self._device),
+            torch.from_numpy(np.asarray(b_obs)).to(self._device),
+            torch.LongTensor(b_action).to(self._device),
+            torch.FloatTensor(b_reward).to(self._device),
+            torch.from_numpy(np.asarray(b_post_obs)).to(self._device),
+            torch.FloatTensor(b_done).to(self._device),
             torch.FloatTensor(b_steps).to(self._device),
         ) + tuple(
             torch.from_numpy(np.asarray(b_extra)).to(self._device).float()

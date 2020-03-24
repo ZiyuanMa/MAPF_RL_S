@@ -11,18 +11,6 @@ from typing import List
 action_list = np.array([[0, 0],[-1, 0],[1, 0],[0, -1],[0, 1]], dtype=np.int8)
 
 
-def observe(environment, num_agents, agents_pos, goals_pos):
-
-    obs = np.zeros((num_agents, 3, *config.map_size), dtype=np.float32)
-    for i in range(num_agents):
-        obs[i,0,:,:][tuple(agents_pos[i])] = 1
-        obs[i,1,:,:][tuple(goals_pos[i])] = 1
-        obs[i,2,:,:] = np.copy(environment)
-
-    return obs
-
-
-
 def map_partition(map):
 
     empty_pos = np.argwhere(map==0).astype(np.int).tolist()
@@ -148,20 +136,17 @@ class Environment:
 
         return self.observe()
 
-    def load(self, world, num_agents, agents_pos, goals_pos):
+    def load(self, world: np.ndarray, agents_pos: np.ndarray, goals_pos: np.ndarray):
 
-        self.num_agents = num_agents
-        self.map_size = (8, 8)
-        self.map = np.array(world)
-        self.goals_pos = np.array(goals_pos, dtype=np.int8)
+        self.map = np.copy(world)
+        self.agents_pos = np.copy(agents_pos)
+        self.goals_pos = np.copy(goals_pos)
 
-        self.agents_pos = np.array(agents_pos, dtype=np.int8)
-
+        assert agents_pos.shape[0] == self.num_agents
         
         self.steps = 0
 
-
-    def step(self, actions: List):
+    def step(self, actions: List[int]):
         '''
         actions:
             list of indices
@@ -314,7 +299,3 @@ class Environment:
         plt.pause(0.5)
 
 
-if __name__ == '__main__':
-    a = np.array([[1,2],[3,4]])
-    b = np.array([1,2])
-    print(sum(np.all(a==b, axis=1)))
