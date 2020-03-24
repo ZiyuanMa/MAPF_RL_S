@@ -17,6 +17,7 @@ collision_reward = -0.5
 finish_reward = 5
 
 # model setting
+num_kernels = 32
 num_sa_heads = 4
 num_sa_layers = 2
 
@@ -27,7 +28,7 @@ forward_steps = 3
 
 
 grad_norm = 10
-batch_size = 16
+batch_size = 32
 double_q = True
 buffer_size = 10000
 exploration_fraction = 0.1
@@ -48,4 +49,4 @@ max_value = 5
 ob_scale = 1
 
 
-imitation_ratio = 0.15
+imitation_ratio = 0.3

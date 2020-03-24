@@ -19,14 +19,14 @@ class SelfAttention(nn.Module):
     def __init__(self, d_model, num_sa_layers=config.num_sa_layers, num_sa_heads=config.num_sa_heads):
         super(SelfAttention, self).__init__()
 
-        self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) for _ in range(num_sa_layers)])
+        self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) for _ in range(config.num_sa_layers)])
         self.linears = nn.ModuleList([nn.Sequential(nn.Linear(d_model, d_model),
                                                     nn.ReLU(True),
                                                     nn.Linear(d_model, d_model),
                                                 )
 
-                                                for _ in range(num_sa_layers)])
-        self.norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(num_sa_layers)])
+                                                for _ in range(config.num_sa_layers)])
+        self.norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(config.num_sa_layers)])
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
 
@@ -49,27 +49,27 @@ class Network(nn.Module):
         self.atom_num = atom_num
         
         self.conv_net = nn.Sequential(
-            nn.Conv2d(3, 32, 4, 2),
+            nn.Conv2d(3, config.num_kernels // 2, 4, 2),
             nn.ReLU(True),
-            nn.Conv2d(32, 64, 2, 1),
+            nn.Conv2d(config.num_kernels // 2, config.num_kernels, 2, 1),
             nn.ReLU(True),
             Flatten(),
 
         )
 
-        self.self_attn = SelfAttention(256)
+        self.self_attn = SelfAttention(2*2*config.num_kernels)
         
         self.q = nn.Sequential(
-            nn.Linear(256, 256),
+            nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
             nn.ReLU(True),
-            nn.Linear(256, config.action_space * atom_num)
+            nn.Linear(2*2*config.num_kernels, config.action_space * atom_num)
         )
 
         if dueling:
             self.state = nn.Sequential(
-                nn.Linear(256, 256),
+                nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
                 nn.ReLU(True),
-                nn.Linear(256, atom_num)
+                nn.Linear(2*2*config.num_kernels, atom_num)
             )
 
         for _, m in self.named_modules():
@@ -89,9 +89,9 @@ class Network(nn.Module):
 
         latent = self.conv_net(x)
 
-        latent = latent.view(config.num_agents, batch_size, 256)
+        latent = latent.view(config.num_agents, batch_size, 2*2*config.num_kernels)
         latent = self.self_attn(latent)
-        latent = latent.view(config.num_agents*batch_size, 256)
+        latent = latent.view(config.num_agents*batch_size, 2*2*config.num_kernels)
 
         q_val = self.q(latent)
 
