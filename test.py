@@ -6,6 +6,7 @@ import config
 from search import find_path
 import pickle
 import os
+import matplotlib.pyplot as plt
 
 
 def create_test():
@@ -42,6 +43,11 @@ def test_model():
         tests = pickle.load(f)
 
     checkpoint = config.save_interval
+
+    x = []
+    y1 = []
+    y2 = []
+
     while os.path.exists('./models/'+str(checkpoint)+'.checkpoint'):
 
 
@@ -78,14 +84,17 @@ def test_model():
 
         sum_reward /= 100
 
+        print('---------checkpoint '+str(checkpoint)+'---------------')
+        print('test score: %.3f' %sum_reward)
+        print('best score: %.3f' %sum(tests['rewards'])/100)
 
-            
-
-
-    print('test score: %.3f' %sum_reward)
-
-
-    print('best score: %.3f' %sum_reward)
+        x.append(checkpoint)
+        y1.append(sum_reward)
+        y2.append(sum(tests['rewards'])/100)
+        checkpoint += config.save_interval
+    
+    plt.plot(x, y1, 'bo')
+    plt.plot(x, y2, 'go')
 
 
 if __name__ == '__main__':
