@@ -157,7 +157,7 @@ class Environment:
                 4 right
         '''
 
-        # assert len(actions) == self.num_agents, 'actions number'
+        assert len(actions) == self.num_agents, 'actions number' + str(actions)
         # assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
         
         if np.unique(self.agents_pos, axis=0).shape[0] < self.num_agents:

@@ -7,7 +7,9 @@ from search import find_path
 import pickle
 import os
 import matplotlib.pyplot as plt
-
+import random
+np.random.seed(0)
+random.seed(0)
 
 def create_test():
 
@@ -51,7 +53,7 @@ def test_model():
     while os.path.exists('./models/'+str(checkpoint)+'.checkpoint'):
 
 
-        state_dict, atom_num = torch.load(str(checkpoint)+'.checkpoint')
+        state_dict, atom_num = torch.load('./models/'+str(checkpoint)+'.checkpoint')
         network.load_state_dict(state_dict)
         if atom_num > 1:
             vrange = torch.linspace(config.min_value, config.max_value, atom_num)
@@ -76,7 +78,7 @@ def test_model():
                 if atom_num > 1:
                     q_vals = (q_vals.exp() * vrange).sum(3)
 
-                action = torch.argmax(q_vals, 2).tolist()
+                action = torch.argmax(q_vals, 2).tolist()[0]
                 # print(action)
                 obs, reward, done, _ = env.step(action)
 
@@ -86,17 +88,18 @@ def test_model():
 
         print('---------checkpoint '+str(checkpoint)+'---------------')
         print('test score: %.3f' %sum_reward)
-        print('best score: %.3f' %sum(tests['rewards'])/100)
+        print('best score: %.3f' %(sum(tests['rewards'])/100))
 
         x.append(checkpoint)
         y1.append(sum_reward)
         y2.append(sum(tests['rewards'])/100)
         checkpoint += config.save_interval
     
-    plt.plot(x, y1, 'bo')
-    plt.plot(x, y2, 'go')
+    plt.plot(x, y1, 'b-')
+    plt.plot(x, y2, 'g-')
+    plt.show()
 
 
 if __name__ == '__main__':
-
-    create_test()
+    # create_test()
+    test_model()
