@@ -49,4 +49,4 @@ max_value = 5
 ob_scale = 1
 
 
-imitation_ratio = 0.3
+imitation_ratio = 0.2
