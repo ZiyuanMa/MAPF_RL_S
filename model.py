@@ -20,7 +20,8 @@ class SelfAttention(nn.Module):
         super(SelfAttention, self).__init__()
 
         self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) for _ in range(config.num_sa_layers)])
-        self.linears = nn.ModuleList([nn.Sequential(nn.Linear(d_model, d_model),
+        self.linears = nn.ModuleList([nn.Sequential(
+                                                    # nn.Linear(d_model, d_model),
                                                     nn.ReLU(True),
                                                     nn.Linear(d_model, d_model),
                                                 )

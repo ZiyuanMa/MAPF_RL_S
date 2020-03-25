@@ -169,19 +169,20 @@ def learn(  env, number_timesteps,
         # update target net and log
         if n_iter % target_network_update_freq == 0:
             qtar.load_state_dict(qnet.state_dict())
+            # print('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
             print('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
-            # logger.info('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
-            fps = int(n_iter / (time.time() - start_ts))
-            # logger.info('Total timesteps {} FPS {}'.format(n_iter, fps))
-            print('FPS: ' + str(fps))
-            for k, v in infos.items():
-                v = (sum(v) / len(v)) if v else float('nan')
-                print(k)
-                print(v)
+            fps = int(target_network_update_freq / (time.time() - start_ts))
+            start_ts = time.time()
+            print('FPS {}'.format(fps))
+            # print('FPS: ' + str(fps))
+            # for k, v in infos.items():
+            #     v = (sum(v) / len(v)) if v else float('nan')
+            #     print(k)
+            #     print(v)
                 # logger.info('{}: {:.6f}'.format(k, v))
             if n_iter > learning_starts and n_iter % train_freq == 0:
-                # logger.info('vloss: {:.6f}'.format(loss.item()))
-                print('loss: '+str(loss.item()))
+                print('vloss: {:.6f}'.format(loss.item()))
+                # print('loss: '+str(loss.item()))
 
         if save_interval and n_iter % save_interval == 0:
             torch.save([qnet.state_dict(), config.atom_num],

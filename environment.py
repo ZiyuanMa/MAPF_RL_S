@@ -298,4 +298,7 @@ class Environment:
         plt.show()
         plt.pause(0.5)
 
+    def close(self):
+        plt.close()
+
 
