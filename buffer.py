@@ -188,18 +188,19 @@ class ReplayBuffer(object):
         b_obs, b_action, b_reward, b_post_obs, b_done, b_steps = [], [], [], [], [], []
         b_extras = [[] for _ in range(len(self._storage[0]) - 5)]
         for i in idxes:
-            obs, action, reward, post_obs, done, *extras = self._storage[i]
+            obs, action, reward, post_obs, done, imitation, *extras = self._storage[i]
 
             # look forward
             forward = 1
-            for j in range(1,config.forward_steps):
-                next_idx = (i+j) % self._maxsize
-                if next_idx != self._next_idx and not done:
-                    _, _, next_reward, post_obs, done, *extras = self._storage[next_idx]
-                    reward += next_reward * config.gamma ** j
-                    forward += 1
-                else:
-                    break
+            if imitation:
+                for j in range(1,config.forward_steps):
+                    next_idx = (i+j) % self._maxsize
+                    if next_idx != self._next_idx and not done:
+                        _, _, next_reward, post_obs, done, imitation, *extras = self._storage[next_idx]
+                        reward += next_reward * config.gamma ** j
+                        forward += 1
+                    else:
+                        break
 
 
             b_obs.append(obs.astype('float32'))
@@ -217,10 +218,11 @@ class ReplayBuffer(object):
             torch.from_numpy(np.asarray(b_post_obs)).to(self._device),
             torch.FloatTensor(b_done).to(self._device),
             torch.FloatTensor(b_steps).to(self._device),
-        ) + tuple(
-            torch.from_numpy(np.asarray(b_extra)).to(self._device).float()
-            for b_extra in b_extras
-        )
+        ) 
+        # + tuple(
+        #     torch.from_numpy(np.asarray(b_extra)).to(self._device).float()
+        #     for b_extra in b_extras
+        # )
         return res
 
     def sample(self, batch_size):

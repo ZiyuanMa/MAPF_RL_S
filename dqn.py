@@ -290,7 +290,7 @@ def _generate(device, env, qnet, ob_scale,
             }
         # return data and update observation
 
-        yield (o, a, r, o_, [int(done)], infos)
+        yield (o, a, r, o_, [int(done)], imitation, infos)
         infos = dict()
 
         if not done:
