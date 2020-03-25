@@ -20,24 +20,29 @@ class SelfAttention(nn.Module):
         super(SelfAttention, self).__init__()
 
         self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) for _ in range(config.num_sa_layers)])
-        self.linears = nn.ModuleList([nn.Sequential(
-                                                    # nn.Linear(d_model, d_model),
-                                                    nn.ReLU(True),
-                                                    nn.Linear(d_model, d_model),
-                                                )
+        # self.linears = nn.ModuleList([nn.Sequential(
+        #                                             # nn.Linear(d_model, d_model),
+        #                                             nn.ReLU(True),
+        #                                             nn.Linear(d_model, d_model),
+        #                                         )
 
-                                                for _ in range(config.num_sa_layers)])
-        self.norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(config.num_sa_layers)])
+        #                                         for _ in range(config.num_sa_layers)])
+        # self.norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(config.num_sa_layers)])
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
 
         
-        for self_attn, linear, norm in zip(self.self_attns, self.linears, self.norms):
+        # for self_attn, linear, norm in zip(self.self_attns, self.linears, self.norms):
         
-            src_out = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
-            src_out = linear(src_out)
-            src = src + src_out
-            src = norm(src)
+        #     src_out = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
+        #     src_out = linear(src_out)
+        #     src = src + src_out
+        #     src = norm(src)
+
+        for self_attn in self.self_attns:
+        
+            src = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
+            src = F.relu(src)
 
         return src
 
@@ -50,9 +55,11 @@ class Network(nn.Module):
         self.atom_num = atom_num
         
         self.conv_net = nn.Sequential(
-            nn.Conv2d(3, config.num_kernels // 2, 4, 2),
+            nn.Conv2d(3, config.num_kernels // 2, 3, 1),
             nn.ReLU(True),
-            nn.Conv2d(config.num_kernels // 2, config.num_kernels, 2, 1),
+            nn.Conv2d(config.num_kernels // 2, config.num_kernels, 3, 1),
+            nn.ReLU(True),
+            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
             nn.ReLU(True),
             Flatten(),
 
@@ -61,16 +68,16 @@ class Network(nn.Module):
         self.self_attn = SelfAttention(2*2*config.num_kernels)
         
         self.q = nn.Sequential(
-            nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
-            nn.ReLU(True),
-            nn.Linear(2*2*config.num_kernels, config.action_space * atom_num)
+            # nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
+            # nn.ReLU(True),
+            nn.Linear(2*2*2*config.num_kernels, config.action_space * atom_num)
         )
 
         if dueling:
             self.state = nn.Sequential(
-                nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
-                nn.ReLU(True),
-                nn.Linear(2*2*config.num_kernels, atom_num)
+                # nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
+                # nn.ReLU(True),
+                nn.Linear(2*2*2*config.num_kernels, atom_num)
             )
 
         for _, m in self.named_modules():
@@ -90,10 +97,12 @@ class Network(nn.Module):
 
         latent = self.conv_net(x)
 
-        latent = latent.view(config.num_agents, batch_size, 2*2*config.num_kernels)
-        latent = self.self_attn(latent)
-        latent = latent.view(config.num_agents*batch_size, 2*2*config.num_kernels)
+        latent_ = latent.view(config.num_agents, batch_size, 2*2*config.num_kernels)
+        latent_ = self.self_attn(latent_)
+        latent_ = latent_.view(config.num_agents*batch_size, 2*2*config.num_kernels)
 
+        latent = torch.cat((latent, latent_), 1)
+        
         q_val = self.q(latent)
 
 
