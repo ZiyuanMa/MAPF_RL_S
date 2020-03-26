@@ -290,7 +290,7 @@ def _generate(device, env, qnet, ob_scale,
             }
         # return data and update observation
 
-        yield (o, a, r, o_, [int(done)], imitation, infos)
+        yield (o, a, r, o_, int(done), imitation, infos)
         infos = dict()
 
         if not done:
@@ -335,7 +335,6 @@ if __name__ == '__main__':
 
     # a = np.array([[[1,2],[3,4]], [[5,6],[7,8]]])
     # print(a[[0,1],[0,1],[0,1]])
-
 
     env = Environment()
     learn(env, 10000000)

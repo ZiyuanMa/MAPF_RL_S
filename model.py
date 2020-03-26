@@ -14,35 +14,43 @@ class Flatten(nn.Module):
     def forward(self, x):
         return x.contiguous().view(x.size(0), -1)
 
+class ResBlock(nn.Module):
+    def __init__(self, dim, kernel_size=3, stride=1, padding=1):
+        super(ResBlock, self).__init__()
+
+        self.block = nn.Sequential(
+            nn.Conv2d(dim, dim, kernel_size, stride, padding),
+            nn.BatchNorm2d(dim),
+            nn.ReLU(True),
+            nn.Conv2d(dim, dim, kernel_size, stride, padding),
+            nn.BatchNorm2d(dim),
+        )
+
+    def forward(self, x):
+
+        return F.relu(self.block(x) + x)
 
 class SelfAttention(nn.Module):
     def __init__(self, d_model, num_sa_layers=config.num_sa_layers, num_sa_heads=config.num_sa_heads):
         super(SelfAttention, self).__init__()
 
         self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) for _ in range(config.num_sa_layers)])
-        # self.linears = nn.ModuleList([nn.Sequential(
-        #                                             # nn.Linear(d_model, d_model),
-        #                                             nn.ReLU(True),
-        #                                             nn.Linear(d_model, d_model),
-        #                                         )
+        self.linears = nn.ModuleList([nn.Sequential(
+                                                    nn.ReLU(True),
+                                                    nn.Linear(d_model, d_model),
+                                                    nn.ReLU(True),
+                                                )
 
-        #                                         for _ in range(config.num_sa_layers)])
+                                                for _ in range(config.num_sa_layers)])
         # self.norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(config.num_sa_layers)])
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
 
         
-        # for self_attn, linear, norm in zip(self.self_attns, self.linears, self.norms):
-        
-        #     src_out = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
-        #     src_out = linear(src_out)
-        #     src = src + src_out
-        #     src = norm(src)
-
-        for self_attn in self.self_attns:
+        for self_attn, linear in zip(self.self_attns, self.linears):
         
             src = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
-            src = F.relu(src)
+            src = linear(src)
 
         return src
 
@@ -55,15 +63,37 @@ class Network(nn.Module):
         self.atom_num = atom_num
         
         self.conv_net = nn.Sequential(
-            nn.Conv2d(3, config.num_kernels // 2, 3, 1),
+            nn.Conv2d(3, config.num_kernels, 3, 1),
             nn.ReLU(True),
-            nn.Conv2d(config.num_kernels // 2, config.num_kernels, 3, 1),
+            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
             nn.ReLU(True),
             nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
             nn.ReLU(True),
             Flatten(),
+            nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
+            nn.ReLU(True)
 
         )
+
+        # self.conv_net = nn.Sequential(
+        #     nn.Conv2d(3, config.num_kernels, 3, 1, 1),
+        #     nn.BatchNorm2d(config.num_kernels),
+        #     nn.ReLU(True),
+
+        #     ResBlock(config.num_kernels),
+
+        #     ResBlock(config.num_kernels),
+
+        #     nn.Conv2d(config.num_kernels, 4, 3, 1, 1),
+        #     nn.BatchNorm2d(4),
+        #     nn.ReLU(True),
+
+        #     Flatten(),
+
+        #     nn.Linear(4*config.num_kernels, 4*config.num_kernels),
+        #     nn.ReLU(True)
+
+        # )
 
         self.self_attn = SelfAttention(2*2*config.num_kernels)
         

@@ -67,8 +67,9 @@ def test_model():
             done = False
 
             while not done:
-                # if i == 50:
+                # if i == 20:
                 #     env.render()
+
                 obs = env.observe()
                 obs = np.expand_dims(obs, axis=0)
                 obs = torch.from_numpy(obs).float()
@@ -79,13 +80,16 @@ def test_model():
                 if atom_num > 1:
                     q_vals = (q_vals.exp() * vrange).sum(3)
 
+                if i == 20:
+                    print(q_vals)
+
                 action = torch.argmax(q_vals, 2).tolist()[0]
                 # print(action)
                 obs, reward, done, _ = env.step(action)
 
                 sum_reward += sum(reward) / env.num_agents
 
-            # if i == 50:
+            # if i == 20:
             #     env.close()
 
         sum_reward /= 100

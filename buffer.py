@@ -193,21 +193,23 @@ class ReplayBuffer(object):
             # look forward
             forward = 1
             if imitation:
+                # print(imitation)
                 for j in range(1,config.forward_steps):
                     next_idx = (i+j) % self._maxsize
                     if next_idx != self._next_idx and not done:
                         _, _, next_reward, post_obs, done, imitation, *extras = self._storage[next_idx]
+                        assert imitation, 'not imitation'
                         reward += next_reward * config.gamma ** j
                         forward += 1
+
                     else:
                         break
-
 
             b_obs.append(obs.astype('float32'))
             b_action.append(action)
             b_reward.append(reward)
             b_post_obs.append(post_obs.astype('float32'))
-            b_done.append(done)
+            b_done.append([done])
             b_steps.append([forward])
             for j, extra in enumerate(extras):
                 b_extras[j].append(extra)
