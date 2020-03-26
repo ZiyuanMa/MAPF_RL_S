@@ -20,10 +20,10 @@ class ResBlock(nn.Module):
 
         self.block = nn.Sequential(
             nn.Conv2d(dim, dim, kernel_size, stride, padding),
-            nn.BatchNorm2d(dim),
+            # nn.BatchNorm2d(dim),
             nn.ReLU(True),
             nn.Conv2d(dim, dim, kernel_size, stride, padding),
-            nn.BatchNorm2d(dim),
+            # nn.BatchNorm2d(dim),
         )
 
     def forward(self, x):
@@ -77,7 +77,7 @@ class Network(nn.Module):
 
         self.conv_net = nn.Sequential(
             nn.Conv2d(3, config.num_kernels, 3, 1, 1),
-            nn.BatchNorm2d(config.num_kernels),
+            # nn.BatchNorm2d(config.num_kernels),
             nn.ReLU(True),
 
             ResBlock(config.num_kernels),
@@ -85,7 +85,7 @@ class Network(nn.Module):
             ResBlock(config.num_kernels),
 
             nn.Conv2d(config.num_kernels, 4, 1, 1),
-            nn.BatchNorm2d(4),
+            # nn.BatchNorm2d(4),
             nn.ReLU(True),
 
             Flatten(),
