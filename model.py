@@ -62,38 +62,38 @@ class Network(nn.Module):
 
         self.atom_num = atom_num
         
-        self.conv_net = nn.Sequential(
-            nn.Conv2d(3, config.num_kernels, 3, 1),
-            nn.ReLU(True),
-            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
-            nn.ReLU(True),
-            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
-            nn.ReLU(True),
-            Flatten(),
-            nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
-            nn.ReLU(True)
-
-        )
-
         # self.conv_net = nn.Sequential(
-        #     nn.Conv2d(3, config.num_kernels, 3, 1, 1),
-        #     nn.BatchNorm2d(config.num_kernels),
+        #     nn.Conv2d(3, config.num_kernels, 3, 1),
         #     nn.ReLU(True),
-
-        #     ResBlock(config.num_kernels),
-
-        #     ResBlock(config.num_kernels),
-
-        #     nn.Conv2d(config.num_kernels, 4, 3, 1, 1),
-        #     nn.BatchNorm2d(4),
+        #     nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
         #     nn.ReLU(True),
-
+        #     nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1),
+        #     nn.ReLU(True),
         #     Flatten(),
-
-        #     nn.Linear(4*config.num_kernels, 4*config.num_kernels),
+        #     nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
         #     nn.ReLU(True)
 
         # )
+
+        self.conv_net = nn.Sequential(
+            nn.Conv2d(3, config.num_kernels, 3, 1, 1),
+            nn.BatchNorm2d(config.num_kernels),
+            nn.ReLU(True),
+
+            ResBlock(config.num_kernels),
+
+            ResBlock(config.num_kernels),
+
+            nn.Conv2d(config.num_kernels, 4, 1, 1),
+            nn.BatchNorm2d(4),
+            nn.ReLU(True),
+
+            Flatten(),
+
+            nn.Linear(4*config.num_kernels, 4*config.num_kernels),
+            nn.ReLU(True),
+
+        )
 
         self.self_attn = SelfAttention(2*2*config.num_kernels)
         
