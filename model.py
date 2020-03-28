@@ -76,38 +76,43 @@ class Network(nn.Module):
         # )
 
         self.conv_net = nn.Sequential(
+            
             nn.Conv2d(3, config.num_kernels, 3, 1, 1),
-            # nn.BatchNorm2d(config.num_kernels),
+            nn.ReLU(True),
+            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1, 1),
+            nn.ReLU(True),
+            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1, 1),
+            nn.ReLU(True),
+            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1, 1),
+            nn.ReLU(True),
+            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1, 1),
+            nn.ReLU(True),
+            nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1, 1),
             nn.ReLU(True),
 
-            ResBlock(config.num_kernels),
-
-            ResBlock(config.num_kernels),
-
-            nn.Conv2d(config.num_kernels, 4, 1, 1),
-            # nn.BatchNorm2d(4),
+            nn.Conv2d(config.num_kernels, 8, 1, 1),
             nn.ReLU(True),
 
             Flatten(),
 
-            nn.Linear(4*config.num_kernels, 4*config.num_kernels),
+            nn.Linear(8*8*8, config.latent_dim),
             nn.ReLU(True),
 
         )
 
-        self.self_attn = SelfAttention(2*2*config.num_kernels)
+        self.self_attn = SelfAttention(config.latent_dim)
         
         self.q = nn.Sequential(
             # nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
             # nn.ReLU(True),
-            nn.Linear(2*2*2*config.num_kernels, config.action_space * atom_num)
+            nn.Linear(2*config.latent_dim, config.action_space * atom_num)
         )
 
         if dueling:
             self.state = nn.Sequential(
                 # nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
                 # nn.ReLU(True),
-                nn.Linear(2*2*2*config.num_kernels, atom_num)
+                nn.Linear(2*config.latent_dim, atom_num)
             )
 
         for _, m in self.named_modules():

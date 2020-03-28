@@ -353,7 +353,7 @@ class CBSSolver(object):
             constraints = disjoint_splitting(collision)
 
 
-            if timer.time() - self.start_time > 1:
+            if timer.time() - self.start_time > 2:
                 return None
 
             for constraint in constraints:

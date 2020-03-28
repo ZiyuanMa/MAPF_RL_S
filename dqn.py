@@ -205,13 +205,16 @@ def _generate(device, env, qnet, ob_scale,
 
     o = env.reset()
     
+    
     # if use imitation learning
     imitation = True if random.random() < config.imitation_ratio else False
-    imitation_actions = find_path(env) if imitation else []
+    imitation_actions = find_path(env)
 
-    while imitation and imitation_actions is None:
+    while imitation_actions is None:
         o = env.reset()
         imitation_actions = find_path(env)
+
+    o = torch.from_numpy(o).to(device)
 
 
     infos = dict()
@@ -231,7 +234,7 @@ def _generate(device, env, qnet, ob_scale,
         else:
             # sample action
             with torch.no_grad():
-                ob = scale_ob(np.expand_dims(o, 0), device, ob_scale)
+                ob = o.unsqueeze(0)
 
                 # 1 x 3 x 3 x 8 x 8
                 q = qnet(ob)
@@ -280,6 +283,7 @@ def _generate(device, env, qnet, ob_scale,
 
         # take action in env
         o_, r, done, info = env.step(a)
+        o_ = torch.from_numpy(o_).to(device)
         # print(r)
         
 
@@ -300,11 +304,13 @@ def _generate(device, env, qnet, ob_scale,
             o = env.reset()
 
             imitation = True if random.random() < config.imitation_ratio else False
-            imitation_actions = find_path(env) if imitation else []
+            imitation_actions = find_path(env)
 
-            while imitation and imitation_actions is None:
+            while imitation_actions is None:
                 o = env.reset()
                 imitation_actions = find_path(env)
+
+            o = torch.from_numpy(o).to(device)
 
             # if imitation:
             #     print(env.map)
@@ -337,4 +343,4 @@ if __name__ == '__main__':
     # print(a[[0,1],[0,1],[0,1]])
 
     env = Environment()
-    learn(env, 10000000)
+    learn(env, 5000000)

@@ -3,8 +3,8 @@ import math
 
 # environment setting
 map_size = (8, 8)
-num_agents = 2
-obstacle_density = (0, 0.1, 0.2, 0.3)
+num_agents = 3
+obstacle_density = (0, 0.1, 0.2, 0.2, 0.3, 0.3, 0.3, 0.4)
 action_space = 5
 obs_dimension = 3
 max_steps = 50
@@ -18,8 +18,9 @@ finish_reward = 5
 
 # model setting
 num_kernels = 64
-num_sa_heads = 4
+num_sa_heads = 8
 num_sa_layers = 2
+latent_dim = 256
 
 
 # training setting
@@ -30,7 +31,7 @@ forward_steps = 5
 grad_norm = 10
 batch_size = 32
 double_q = True
-buffer_size = 100000
+buffer_size = 10000
 exploration_fraction = 0.1
 exploration_final_eps = 0.01
 train_freq = 4
@@ -49,4 +50,4 @@ max_value = 5
 ob_scale = 1
 
 
-imitation_ratio = 0.2
+imitation_ratio = 0.25

@@ -205,19 +205,19 @@ class ReplayBuffer(object):
                     else:
                         break
 
-            b_obs.append(obs.astype('float32'))
+            b_obs.append(obs)
             b_action.append(action)
             b_reward.append(reward)
-            b_post_obs.append(post_obs.astype('float32'))
+            b_post_obs.append(post_obs)
             b_done.append([done])
             b_steps.append([forward])
             for j, extra in enumerate(extras):
                 b_extras[j].append(extra)
         res = (
-            torch.from_numpy(np.asarray(b_obs)).to(self._device),
+            torch.stack(b_obs),
             torch.LongTensor(b_action).to(self._device),
             torch.FloatTensor(b_reward).to(self._device),
-            torch.from_numpy(np.asarray(b_post_obs)).to(self._device),
+            torch.stack(b_post_obs),
             torch.FloatTensor(b_done).to(self._device),
             torch.FloatTensor(b_steps).to(self._device),
         ) 

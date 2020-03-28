@@ -22,6 +22,13 @@ def create_test():
         tests['goals'].append(np.copy(env.goals_pos))
 
         actions = find_path(env)
+        while actions is None:
+            env.reset()
+            tests['maps'][-1] = np.copy(env.map)
+            tests['agents'][-1] = np.copy(env.agents_pos)
+            tests['goals'][-1] = np.copy(env.goals_pos)
+            actions = find_path(env)
+
         sum_reward = 0
         for action in actions:
             _, reward, _, _ = env.step(action)
@@ -59,6 +66,8 @@ def test_model():
             vrange = torch.linspace(config.min_value, config.max_value, atom_num)
 
         env = Environment()
+        case = 50
+        show = False
         sum_reward = 0
 
         for i in range(100):
@@ -67,8 +76,8 @@ def test_model():
             done = False
 
             while not done:
-                # if i == 20:
-                #     env.render()
+                if i == case and show:
+                    env.render()
 
                 obs = env.observe()
                 obs = np.expand_dims(obs, axis=0)
@@ -80,7 +89,7 @@ def test_model():
                 if atom_num > 1:
                     q_vals = (q_vals.exp() * vrange).sum(3)
 
-                if i == 20:
+                if i == case and show:
                     print(q_vals)
 
                 action = torch.argmax(q_vals, 2).tolist()[0]
@@ -89,8 +98,8 @@ def test_model():
 
                 sum_reward += sum(reward) / env.num_agents
 
-            # if i == 20:
-            #     env.close()
+            if i == case and show:
+                env.close()
 
         sum_reward /= 100
 
