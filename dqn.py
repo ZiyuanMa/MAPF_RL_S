@@ -69,7 +69,7 @@ def learn(  env, number_timesteps,
 
     # create target network
     qnet = network.to(device)
-    qtar = deepcopy(qnet)
+    tar_qnet = deepcopy(qnet)
 
     # create replay buffer
     if prioritized_replay:
@@ -111,9 +111,9 @@ def learn(  env, number_timesteps,
                     # choose max q index from next observation
                     if double_q:
                         b_action_ = qnet(b_obs_).argmax(2).unsqueeze(2)
-                        b_q_ = (1 - b_done).unsqueeze(2) * qtar(b_obs_).gather(2, b_action_)
+                        b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).gather(2, b_action_)
                     else:
-                        b_q_ = (1 - b_done).unsqueeze(2) * qtar(b_obs_).max(2, keepdim=True)[0]
+                        b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).max(2, keepdim=True)[0]
 
                 b_action = b_action.unsqueeze(2)
                 b_q = qnet(b_obs).gather(2, b_action)
@@ -136,7 +136,7 @@ def learn(  env, number_timesteps,
                 agent_idx = torch.arange(config.num_agents, dtype=torch.long).unsqueeze(0) * torch.ones(batch_size, dtype=torch.long).unsqueeze(1)
 
                 with torch.no_grad():
-                    b_dist_ = qtar(b_obs_).exp()
+                    b_dist_ = tar_qnet(b_obs_).exp()
                     b_action_ = (b_dist_ * z_i).sum(-1).argmax(2)
                     b_tzj = ((gamma**b_steps * (1 - b_done) * z_i[None, :]).unsqueeze(1) + b_reward.unsqueeze(2)).clamp(min_value, max_value)
                     b_i = (b_tzj - min_value) / delta_z
@@ -168,7 +168,7 @@ def learn(  env, number_timesteps,
 
         # update target net and log
         if n_iter % target_network_update_freq == 0:
-            qtar.load_state_dict(qnet.state_dict())
+            tar_qnet.load_state_dict(qnet.state_dict())
             # print('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
             print('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
             fps = int(target_network_update_freq / (time.time() - start_ts))
@@ -193,13 +193,13 @@ def _generate(device, env, qnet, ob_scale,
               number_timesteps, param_noise,
               exploration_fraction, exploration_final_eps,
               atom_num, min_value, max_value):
-    # device = torch.device('cpu')
-    # qnet = deepcopy(qnet)
-    # qnet.to(torch.device('cpu'))
+
     """ Generate training batch sample """
     noise_scale = 1e-2
     action_dim = config.action_space
     explore_steps = number_timesteps * exploration_fraction
+    imitation_frac = config.imitation_ratio / number_timesteps
+
     if atom_num > 1:
         vrange = torch.linspace(min_value, max_value, atom_num).to(device)
 
@@ -221,6 +221,8 @@ def _generate(device, env, qnet, ob_scale,
     for n in range(1, number_timesteps + 1):
         epsilon = 1.0 - (1.0 - exploration_final_eps) * n / explore_steps
         epsilon = max(exploration_final_eps, epsilon)
+
+        config.imitation_ratio -= imitation_frac
 
         if imitation:
             # if not imitation_actions:
@@ -343,4 +345,4 @@ if __name__ == '__main__':
     # print(a[[0,1],[0,1],[0,1]])
 
     env = Environment()
-    learn(env, 5000000)
+    learn(env, 2000000)

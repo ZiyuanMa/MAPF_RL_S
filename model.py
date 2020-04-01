@@ -90,12 +90,12 @@ class Network(nn.Module):
             nn.Conv2d(config.num_kernels, config.num_kernels, 3, 1, 1),
             nn.ReLU(True),
 
-            nn.Conv2d(config.num_kernels, 8, 1, 1),
+            nn.Conv2d(config.num_kernels, 4, 1, 1),
             nn.ReLU(True),
 
             Flatten(),
 
-            nn.Linear(8*8*8, config.latent_dim),
+            nn.Linear(4*8*8, config.latent_dim),
             nn.ReLU(True),
 
         )
@@ -105,14 +105,14 @@ class Network(nn.Module):
         self.q = nn.Sequential(
             # nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
             # nn.ReLU(True),
-            nn.Linear(2*config.latent_dim, config.action_space * atom_num)
+            nn.Linear(config.latent_dim, config.action_space * atom_num)
         )
 
         if dueling:
             self.state = nn.Sequential(
                 # nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
                 # nn.ReLU(True),
-                nn.Linear(2*config.latent_dim, atom_num)
+                nn.Linear(config.latent_dim, atom_num)
             )
 
         for _, m in self.named_modules():
@@ -132,11 +132,11 @@ class Network(nn.Module):
 
         latent = self.conv_net(x)
 
-        latent_ = latent.view(config.num_agents, batch_size, 2*2*config.num_kernels)
-        latent_ = self.self_attn(latent_)
-        latent_ = latent_.view(config.num_agents*batch_size, 2*2*config.num_kernels)
+        latent = latent.view(config.num_agents, batch_size, 2*2*config.num_kernels)
+        latent = self.self_attn(latent)
+        latent = latent.view(config.num_agents*batch_size, 2*2*config.num_kernels)
 
-        latent = torch.cat((latent, latent_), 1)
+        # latent = torch.cat((latent, latent_), 1)
         
         q_val = self.q(latent)
 

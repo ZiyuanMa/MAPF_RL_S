@@ -3,7 +3,7 @@ import math
 
 # environment setting
 map_size = (8, 8)
-num_agents = 3
+num_agents = 2
 obstacle_density = (0, 0.1, 0.2, 0.2, 0.3, 0.3, 0.3, 0.4)
 action_space = 5
 obs_dimension = 3
@@ -18,7 +18,7 @@ finish_reward = 5
 
 # model setting
 num_kernels = 64
-num_sa_heads = 8
+num_sa_heads = 4
 num_sa_layers = 2
 latent_dim = 256
 
@@ -29,15 +29,15 @@ forward_steps = 5
 
 
 grad_norm = 10
-batch_size = 32
+batch_size = 16
 double_q = True
-buffer_size = 10000
+buffer_size = 1000
 exploration_fraction = 0.1
 exploration_final_eps = 0.01
 train_freq = 4
-learning_starts = 10000
+learning_starts = 1000
 save_interval = 100000
-target_network_update_freq = 1000
+target_network_update_freq = 250
 gamma = 0.99
 prioritized_replay = True
 prioritized_replay_alpha = 0.6
