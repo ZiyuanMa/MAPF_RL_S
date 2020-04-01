@@ -52,7 +52,7 @@ def test_model():
         tests = pickle.load(f)
 
     checkpoint = config.save_interval
-
+    
     x = []
     y1 = []
     y2 = []
@@ -67,7 +67,7 @@ def test_model():
 
         env = Environment()
         case = 50
-        show = False
+        show = True
         sum_reward = 0
 
         for i in range(100):

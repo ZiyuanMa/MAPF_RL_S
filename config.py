@@ -34,7 +34,8 @@ double_q = True
 buffer_size = 1000
 exploration_fraction = 0.1
 exploration_final_eps = 0.01
-train_freq = 4
+train_freq = 32
+
 learning_starts = 1000
 save_interval = 100000
 target_network_update_freq = 250
@@ -50,4 +51,4 @@ max_value = 5
 ob_scale = 1
 
 
-imitation_ratio = 0.25
+imitation_ratio = 0.5
