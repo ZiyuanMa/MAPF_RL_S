@@ -28,19 +28,19 @@ latent_dim = 256
 forward_steps = 5
 
 
-grad_norm = 10
-batch_size = 16
+grad_norm = 5
+batch_size = 8
 double_q = True
 buffer_size = 1000
 exploration_fraction = 0.1
 exploration_final_eps = 0.01
-train_freq = 32
+train_freq = 50
 
 learning_starts = 1000
 save_interval = 100000
 target_network_update_freq = 250
 gamma = 0.99
-prioritized_replay = True
+prioritized_replay = False
 prioritized_replay_alpha = 0.6
 prioritized_replay_beta0 = 0.4
 param_noise = False
