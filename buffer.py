@@ -190,6 +190,8 @@ class ReplayBuffer(object):
         for i in idxes:
             obs, action, reward, post_obs, done, imitation, *extras = self._storage[i]
 
+            reward = np.copy(reward)
+
             # look forward
             forward = 1
             if imitation:

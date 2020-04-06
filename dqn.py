@@ -65,7 +65,11 @@ def learn(  env, number_timesteps,
     """
     # create network and optimizer
     network = Network(atom_num, dueling)
-    optimizer = Adam(network.parameters(), 1e-4, eps=1e-5)
+    network.encoder.load_state_dict(torch.load('./encoder.pth'))
+    for param in network.encoder.parameters():
+        param.requires_grad = False
+
+    optimizer = Adam(filter(lambda param: param.requires_grad, network.parameters()), 1e-4, eps=1e-5)
 
     # create target network
     qnet = network.to(device)
@@ -185,8 +189,7 @@ def learn(  env, number_timesteps,
                 # print('loss: '+str(loss.item()))
 
         if save_interval and n_iter % save_interval == 0:
-            torch.save([qnet.state_dict(), config.atom_num],
-                       os.path.join(save_path, '{}.checkpoint'.format(n_iter)))
+            torch.save(qnet.state_dict(), os.path.join(save_path, '{}.pth'.format(n_iter)))
 
 
 def _generate(device, env, qnet, ob_scale,
@@ -299,7 +302,7 @@ def _generate(device, env, qnet, ob_scale,
         yield (o, a, r, o_, int(done), imitation, infos)
         infos = dict()
 
-        if not done:
+        if not done and env.steps < config.max_steps:
 
             o = o_ 
         else:
@@ -345,4 +348,4 @@ if __name__ == '__main__':
     # print(a[[0,1],[0,1],[0,1]])
 
     env = Environment()
-    learn(env, 2000000)
+    learn(env, 1500000)
