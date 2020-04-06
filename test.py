@@ -51,7 +51,7 @@ def test_model():
     with open('./test.pkl', 'rb') as f:
         tests = pickle.load(f)
 
-    checkpoint = config.save_interval * 20
+    checkpoint = config.save_interval
     
     x = []
     y1 = []
@@ -140,12 +140,10 @@ def test_init_model():
     with open('./test.pkl', 'rb') as f:
         tests = pickle.load(f)
 
-    network.encoder.load_state_dict(torch.load('./encoder.pth'))
-    network.q.load_state_dict(torch.load('./q.pth'))
-    network.state.load_state_dict(torch.load('./state.pth'))
+    network.encoder.load_state_dict(torch.load('./encoder.pth', map_location=torch.device('cpu')))
+    network.q.load_state_dict(torch.load('./q.pth', map_location=torch.device('cpu')))
+    network.state.load_state_dict(torch.load('./state.pth', map_location=torch.device('cpu')))
     network.eval()
-    if config.atom_num > 1:
-        vrange = torch.linspace(config.min_value, config.max_value, config.atom_num)
 
     env = Environment()
     case = 3

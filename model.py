@@ -85,6 +85,7 @@ class Network(nn.Module):
         )
 
         self.self_attn = SelfAttention(config.latent_dim)
+        self.res_q = nn.Linear(config.latent_dim, config.action_space)
         # for _, m in self.self_attn.named_modules():
 
         #     nn.init.kaiming_uniform_(m.weight)
@@ -127,16 +128,17 @@ class Network(nn.Module):
 
         # latent = torch.cat((latent, latent_), 1)
         # latent = res_latent
-        res_latent += latent
         
-        q_val = self.q(res_latent)
+        q_val = self.q(latent)
+        res_q_val = self.res_q(res_latent)
 
 
         if self.atom_num == 1:
             if hasattr(self, 'state'):
-                s_val = self.state(res_latent)
+                s_val = self.state(latent)
                 qvalue = s_val + q_val - q_val.mean(1, keepdim=True)
-            return qvalue.view(batch_size, config.num_agents, config.action_space)
+                res_q_val += qvalue
+            return res_q_val.view(batch_size, config.num_agents, config.action_space)
         else:
 
             q_val = q_val.view(batch_size*config.num_agents, config.action_space, self.atom_num)

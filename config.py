@@ -22,7 +22,6 @@ num_sa_heads = 8
 num_sa_layers = 2
 latent_dim = 512
 
-
 # training setting
 
 forward_steps = 5

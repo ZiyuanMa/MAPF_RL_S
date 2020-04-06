@@ -66,15 +66,19 @@ def learn(  env, number_timesteps,
     # create network and optimizer
     network = Network(atom_num, dueling)
     network.encoder.load_state_dict(torch.load('./encoder.pth', map_location=torch.device('cpu')))
-    network.q.load_state_dict(torch.load('./q.pth', map_location=torch.device('cpu')))
-    network.state.load_state_dict(torch.load('./state.pth', map_location=torch.device('cpu')))
     for param in network.encoder.parameters():
         param.requires_grad = False
+    network.q.load_state_dict(torch.load('./q.pth', map_location=torch.device('cpu')))
+    for param in network.q.parameters():
+        param.requires_grad = False
+    network.state.load_state_dict(torch.load('./state.pth', map_location=torch.device('cpu')))
+    for param in network.state.parameters():
+        param.requires_grad = False
+
 
     optimizer = Adam(
         [
-        {"params": network.q.parameters(), "lr": 5e-4},
-        {"params": network.state.parameters(), "lr": 5e-4},
+        {"params": network.res_q.parameters(), "lr": 1e-3},
         {"params": network.self_attn.parameters(), "lr": 1e-3},
         ],
         lr=1e-3, eps=1e-5
