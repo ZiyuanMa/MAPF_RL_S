@@ -257,8 +257,7 @@ class Environment:
         if np.all(self.agents_pos==self.goals_pos):
             rewards = np.ones(self.num_agents, dtype=np.float32) * config.finish_reward
             done = True
-        elif self.steps >= config.max_steps:
-            done = True
+
         else:
             done = False
 
