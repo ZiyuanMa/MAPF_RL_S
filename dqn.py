@@ -65,11 +65,20 @@ def learn(  env, number_timesteps,
     """
     # create network and optimizer
     network = Network(atom_num, dueling)
-    network.encoder.load_state_dict(torch.load('./encoder.pth'))
+    network.encoder.load_state_dict(torch.load('./encoder.pth', map_location=torch.device('cpu')))
+    network.q.load_state_dict(torch.load('./q.pth', map_location=torch.device('cpu')))
+    network.state.load_state_dict(torch.load('./state.pth', map_location=torch.device('cpu')))
     for param in network.encoder.parameters():
         param.requires_grad = False
 
-    optimizer = Adam(filter(lambda param: param.requires_grad, network.parameters()), 1e-4, eps=1e-5)
+    optimizer = Adam(
+        [
+        {"params": network.q.parameters(), "lr": 5e-4},
+        {"params": network.state.parameters(), "lr": 5e-4},
+        {"params": network.self_attn.parameters(), "lr": 1e-3},
+        ],
+        lr=1e-3, eps=1e-5
+    )
 
     # create target network
     qnet = network.to(device)
@@ -108,67 +117,67 @@ def learn(  env, number_timesteps,
         if n_iter > learning_starts and n_iter % train_freq == 0:
             b_obs, b_action, b_reward, b_obs_, b_done, b_steps, *extra = buffer.sample(batch_size)
 
+            with torch.autograd.set_detect_anomaly(True):
+                if atom_num == 1:
+                    with torch.no_grad():
+                        
+                        # choose max q index from next observation
+                        if double_q:
+                            b_action_ = qnet(b_obs_).argmax(2).unsqueeze(2)
+                            b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).gather(2, b_action_)
+                        else:
+                            b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).max(2, keepdim=True)[0]
 
-            if atom_num == 1:
-                with torch.no_grad():
+                    b_action = b_action.unsqueeze(2)
+                    b_q = qnet(b_obs).gather(2, b_action)
+
+                    b_reward = b_reward.unsqueeze(2)
+                    abs_td_error = (b_q - (b_reward + (gamma ** b_steps).unsqueeze(2) * b_q_)).abs()
+
                     
-                    # choose max q index from next observation
-                    if double_q:
-                        b_action_ = qnet(b_obs_).argmax(2).unsqueeze(2)
-                        b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).gather(2, b_action_)
+                    priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()
+                    priorities = np.average(np.squeeze(priorities, axis=2), axis=1)
+
+                    if extra:
+                        extra[0] = extra[0].unsqueeze(2)
+                        loss = (extra[0] * huber_loss(abs_td_error)).mean()
                     else:
-                        b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).max(2, keepdim=True)[0]
+                        loss = huber_loss(abs_td_error).mean()
 
-                b_action = b_action.unsqueeze(2)
-                b_q = qnet(b_obs).gather(2, b_action)
-
-                b_reward = b_reward.unsqueeze(2)
-                abs_td_error = (b_q - (b_reward + (gamma ** b_steps).unsqueeze(2) * b_q_)).abs()
-
-                
-                priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()
-                priorities = np.average(np.squeeze(priorities, axis=2), axis=1)
-
-                if extra:
-                    extra[0] = extra[0].unsqueeze(2)
-                    loss = (extra[0] * huber_loss(abs_td_error)).mean()
                 else:
-                    loss = huber_loss(abs_td_error).mean()
+                    batch_idx = torch.ones(config.num_agents, dtype=torch.long).unsqueeze(0) * torch.arange(batch_size, dtype=torch.long).unsqueeze(1)
+                    agent_idx = torch.arange(config.num_agents, dtype=torch.long).unsqueeze(0) * torch.ones(batch_size, dtype=torch.long).unsqueeze(1)
 
-            else:
-                batch_idx = torch.ones(config.num_agents, dtype=torch.long).unsqueeze(0) * torch.arange(batch_size, dtype=torch.long).unsqueeze(1)
-                agent_idx = torch.arange(config.num_agents, dtype=torch.long).unsqueeze(0) * torch.ones(batch_size, dtype=torch.long).unsqueeze(1)
+                    with torch.no_grad():
+                        b_dist_ = tar_qnet(b_obs_).exp()
+                        b_action_ = (b_dist_ * z_i).sum(-1).argmax(2)
+                        b_tzj = ((gamma**b_steps * (1 - b_done) * z_i[None, :]).unsqueeze(1) + b_reward.unsqueeze(2)).clamp(min_value, max_value)
+                        b_i = (b_tzj - min_value) / delta_z
+                        b_lower = b_i.floor()
+                        b_upper = b_i.ceil()
+                        b_m = torch.zeros(batch_size, config.num_agents, atom_num).to(device)
 
-                with torch.no_grad():
-                    b_dist_ = tar_qnet(b_obs_).exp()
-                    b_action_ = (b_dist_ * z_i).sum(-1).argmax(2)
-                    b_tzj = ((gamma**b_steps * (1 - b_done) * z_i[None, :]).unsqueeze(1) + b_reward.unsqueeze(2)).clamp(min_value, max_value)
-                    b_i = (b_tzj - min_value) / delta_z
-                    b_lower = b_i.floor()
-                    b_upper = b_i.ceil()
-                    b_m = torch.zeros(batch_size, config.num_agents, atom_num).to(device)
+                        temp = b_dist_[batch_idx, agent_idx, b_action_, :]
 
-                    temp = b_dist_[batch_idx, agent_idx, b_action_, :]
+                        b_m.scatter_add_(2, b_lower.long(), temp * (b_upper - b_i))
+                        b_m.scatter_add_(2, b_upper.long(), temp * (b_i - b_lower))
 
-                    b_m.scatter_add_(2, b_lower.long(), temp * (b_upper - b_i))
-                    b_m.scatter_add_(2, b_upper.long(), temp * (b_i - b_lower))
+                    b_q = qnet(b_obs)[batch_idx, agent_idx, b_action, :]
 
-                b_q = qnet(b_obs)[batch_idx, agent_idx, b_action, :]
+                    kl_error = -(b_q * b_m).sum(2)
+                    # use kl error as priorities as proposed by Rainbow
+                    priorities = kl_error.detach().cpu().clamp(1e-6).numpy()
+                    priorities = np.average(priorities, axis=1)
+                    loss = kl_error.mean()
 
-                kl_error = -(b_q * b_m).sum(2)
-                # use kl error as priorities as proposed by Rainbow
-                priorities = kl_error.detach().cpu().clamp(1e-6).numpy()
-                priorities = np.average(priorities, axis=1)
-                loss = kl_error.mean()
+                optimizer.zero_grad()
+                loss.backward()
+                if grad_norm is not None:
+                    nn.utils.clip_grad_norm_(qnet.parameters(), grad_norm)
+                optimizer.step()
 
-            optimizer.zero_grad()
-            loss.backward()
-            if grad_norm is not None:
-                nn.utils.clip_grad_norm_(qnet.parameters(), grad_norm)
-            optimizer.step()
-
-            if prioritized_replay:
-                buffer.update_priorities(extra[1], priorities)
+                if prioritized_replay:
+                    buffer.update_priorities(extra[1], priorities)
 
         # update target net and log
         if n_iter % target_network_update_freq == 0:
@@ -348,4 +357,4 @@ if __name__ == '__main__':
     # print(a[[0,1],[0,1],[0,1]])
 
     env = Environment()
-    learn(env, 1500000)
+    learn(env, 20000000)

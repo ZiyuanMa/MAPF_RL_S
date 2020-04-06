@@ -22,17 +22,15 @@ class ResBlock(nn.Module):
 
         self.conv2 = nn.Conv2d(channel, channel, kernel_size=3, stride=1, padding=1)
 
-        self.relu = nn.ReLU(True)
-
     def forward(self, x):
         identity = x
 
-        out = self.relu(self.conv1(x))
+        out = F.relu(self.conv1(x))
         out = self.conv2(out)
 
         out += identity
 
-        out = self.relu(out)
+        out = F.relu(out)
 
         return out
 
@@ -41,22 +39,20 @@ class SelfAttention(nn.Module):
         super(SelfAttention, self).__init__()
 
         self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) for _ in range(config.num_sa_layers)])
-        self.linears = nn.ModuleList([nn.Sequential(
-                                                    nn.ReLU(True),
-                                                    nn.Linear(d_model, d_model),
-                                                    nn.ReLU(True),
-                                                )
+        # self.linears = nn.ModuleList([nn.Sequential(
+        #                                             nn.ReLU(True),
+        #                                         )
 
-                                                for _ in range(config.num_sa_layers)])
+        #                                         for _ in range(config.num_sa_layers)])
 
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
 
         
-        for self_attn, linear in zip(self.self_attns, self.linears):
+        for self_attn in self.self_attns:
         
             src = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
-            src = linear(src)
+            src = F.relu(src)
 
         return src
 
@@ -71,7 +67,7 @@ class Network(nn.Module):
         self.encoder = nn.Sequential(
             
             nn.Conv2d(3, config.num_kernels, 3, 1, 1),
-            nn.ReLU(True),
+            nn.ReLU(),
             
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
@@ -79,12 +75,12 @@ class Network(nn.Module):
             ResBlock(config.num_kernels),
 
             nn.Conv2d(config.num_kernels, 8, 1, 1),
-            nn.ReLU(True),
+            nn.ReLU(),
 
             Flatten(),
 
             nn.Linear(8*8*8, config.latent_dim),
-            nn.ReLU(True),
+            nn.ReLU(),
 
         )
 
@@ -124,19 +120,21 @@ class Network(nn.Module):
 
         latent = self.encoder(x)
 
-        res_latent = latent.view(config.num_agents, batch_size, 2*2*config.num_kernels)
+        res_latent = latent
+        res_latent = res_latent.view(config.num_agents, batch_size, 2*2*config.num_kernels)
         res_latent = self.self_attn(res_latent)
         res_latent = res_latent.view(config.num_agents*batch_size, 2*2*config.num_kernels)
 
         # latent = torch.cat((latent, latent_), 1)
-        latent += res_latent
+        # latent = res_latent
+        res_latent += latent
         
-        q_val = self.q(latent)
+        q_val = self.q(res_latent)
 
 
         if self.atom_num == 1:
             if hasattr(self, 'state'):
-                s_val = self.state(latent)
+                s_val = self.state(res_latent)
                 qvalue = s_val + q_val - q_val.mean(1, keepdim=True)
             return qvalue.view(batch_size, config.num_agents, config.action_space)
         else:
