@@ -191,15 +191,9 @@ def learn(  env, number_timesteps,
             fps = int(target_network_update_freq / (time.time() - start_ts))
             start_ts = time.time()
             print('FPS {}'.format(fps))
-            # print('FPS: ' + str(fps))
-            # for k, v in infos.items():
-            #     v = (sum(v) / len(v)) if v else float('nan')
-            #     print(k)
-            #     print(v)
-                # logger.info('{}: {:.6f}'.format(k, v))
+
             if n_iter > learning_starts and n_iter % train_freq == 0:
                 print('vloss: {:.6f}'.format(loss.item()))
-                # print('loss: '+str(loss.item()))
 
         if save_interval and n_iter % save_interval == 0:
             torch.save(qnet.state_dict(), os.path.join(save_path, '{}.pth'.format(n_iter)))
