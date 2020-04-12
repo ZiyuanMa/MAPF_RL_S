@@ -20,7 +20,7 @@ finish_reward = 3
 num_kernels = 128
 num_sa_heads = 8
 num_sa_layers = 2
-latent_dim = 512
+latent_dim = 256
 
 # training setting
 
@@ -28,7 +28,7 @@ forward_steps = 5
 
 
 grad_norm = 10
-batch_size = 64
+batch_size = 32
 double_q = True
 buffer_size = 1000
 exploration_fraction = 0.01

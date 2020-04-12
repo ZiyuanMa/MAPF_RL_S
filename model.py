@@ -38,6 +38,10 @@ class SelfAttention(nn.Module):
     def __init__(self, d_model, num_sa_layers=config.num_sa_layers, num_sa_heads=config.num_sa_heads):
         super(SelfAttention, self).__init__()
 
+        self.linear = nn.Sequential(
+            nn.Linear(4*config.map_size[0]*config.map_size[1], d_model),
+            nn.ReLU(True),
+        )
         self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) for _ in range(config.num_sa_layers)])
         # self.linears = nn.ModuleList([nn.Sequential(
         #                                             nn.ReLU(True),
@@ -48,7 +52,8 @@ class SelfAttention(nn.Module):
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
 
-        
+        src = self.linear(src)
+        src = F.relu(src)
         for self_attn in self.self_attns:
         
             src = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
@@ -58,11 +63,8 @@ class SelfAttention(nn.Module):
 
 
 class Network(nn.Module):
-    def __init__(self, atom_num, dueling):
+    def __init__(self, atom_num, dueling=True, map_size=config.map_size):
         super(Network, self).__init__()
-
-
-        self.atom_num = atom_num
 
         self.encoder = nn.Sequential(
             
@@ -74,40 +76,29 @@ class Network(nn.Module):
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
 
-            nn.Conv2d(config.num_kernels, 8, 1, 1),
+            nn.Conv2d(config.num_kernels, 4, 1, 1),
             nn.ReLU(),
 
             Flatten(),
 
-            nn.Linear(8*8*8, config.latent_dim),
-            nn.ReLU(),
-
         )
 
         self.self_attn = SelfAttention(config.latent_dim)
-        self.res_q = nn.Linear(config.latent_dim, config.action_space)
-        # for _, m in self.self_attn.named_modules():
-
-        #     nn.init.kaiming_uniform_(m.weight)
-        #     nn.init.kaiming_uniform_(m.bias)
-        
-        self.q = nn.Sequential(
-            # nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
-            # nn.ReLU(True),
-            nn.Linear(config.latent_dim, config.action_space * atom_num)
+        self.linear = nn.Sequential(
+            nn.Linear(4*config.map_size[0]*config.map_size[1], config.latent_dim),
+            nn.ReLU(True),
         )
 
-        if dueling:
-            self.state = nn.Sequential(
-                # nn.Linear(2*2*config.num_kernels, 2*2*config.num_kernels),
-                # nn.ReLU(True),
-                nn.Linear(config.latent_dim, atom_num)
-            )
+        
+        self.adv = nn.Linear(2*config.latent_dim, config.action_space)
 
-        # for _, m in self.named_modules():
-        #     if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-        #         nn.init.xavier_uniform_(m.weight, 1)
-        #         nn.init.constant_(m.bias, 0)
+        if dueling:
+            self.state = nn.Linear(2*config.latent_dim, 1)
+
+        for _, m in self.named_modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
     
     def forward(self, x):
@@ -121,33 +112,22 @@ class Network(nn.Module):
 
         latent = self.encoder(x)
 
-        res_latent = latent
-        res_latent = res_latent.view(config.num_agents, batch_size, 2*2*config.num_kernels)
-        res_latent = self.self_attn(res_latent)
-        res_latent = res_latent.view(config.num_agents*batch_size, 2*2*config.num_kernels)
+        comm_latent = latent
+        comm_latent = comm_latent.view(config.num_agents, batch_size, config.latent_dim)
+        comm_latent = self.self_attn(comm_latent)
+        comm_latent = comm_latent.view(config.num_agents*batch_size, config.latent_dim)
 
-        # latent = torch.cat((latent, latent_), 1)
-        # latent = res_latent
+        latent = self.linear(latent)
+
+        latent = torch.cat((latent, comm_latent), 1)
         
-        q_val = self.q(latent)
-        res_q_val = self.res_q(res_latent)
+        q_val = self.adv(latent)
 
+        s_val = self.state(latent)
+        qvalue = s_val + q_val - q_val.mean(1, keepdim=True)
 
-        if self.atom_num == 1:
-            if hasattr(self, 'state'):
-                s_val = self.state(latent)
-                qvalue = s_val + q_val - q_val.mean(1, keepdim=True)
-                res_q_val += qvalue
-            return res_q_val.view(batch_size, config.num_agents, config.action_space)
-        else:
-
-            q_val = q_val.view(batch_size*config.num_agents, config.action_space, self.atom_num)
-            if hasattr(self, 'state'):
-                s_val = self.state(latent).unsqueeze(1)
-                q_val = s_val + q_val - q_val.mean(1, keepdim=True)
-            logprobs = log_softmax(q_val, -1)
-            return logprobs.view(batch_size, config.num_agents, config.action_space, self.atom_num)
-
+        return qvalue.view(batch_size, config.num_agents, config.action_space)
+    
 
 # if __name__ == '__main__':
 #     t = torch.rand(2, 4)

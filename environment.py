@@ -266,7 +266,7 @@ class Environment:
 
 
     def observe(self):
-        obs = np.zeros((self.num_agents, 3, 8, 8), dtype=np.float32)
+        obs = np.zeros((self.num_agents, 3, self.map_size[0], self.map_size[1]), dtype=np.float32)
         for i in range(self.num_agents):
             obs[i,0][tuple(self.agents_pos[i])] = 1
             obs[i,1][tuple(self.goals_pos[i])] = 1
