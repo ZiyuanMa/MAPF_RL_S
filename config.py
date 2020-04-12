@@ -28,7 +28,7 @@ forward_steps = 5
 
 
 grad_norm = 10
-batch_size = 32
+batch_size = 16
 double_q = True
 buffer_size = 1000
 exploration_fraction = 0.01
