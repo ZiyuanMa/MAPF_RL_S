@@ -171,6 +171,8 @@ def learn(  env, number_timesteps,
                     nn.utils.clip_grad_norm_(qnet.parameters(), grad_norm)
                 optimizer.step()
 
+                # tar_qnet.self_attn.load_state_dict(qnet.self_attn.parameters())
+
                 if prioritized_replay:
                     buffer.update_priorities(extra[1], priorities)
 

@@ -53,7 +53,7 @@ class SelfAttention(nn.Module):
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
 
         src = self.linear(src)
-        src = F.relu(src)
+
         for self_attn in self.self_attns:
         
             src = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
@@ -108,12 +108,12 @@ class Network(nn.Module):
 
         batch_size = x.size(0)
 
-        x = x.view(-1, 3, 8, 8)
+        x = x.view(-1, 3, config.map_size[0], config.map_size[1])
 
         latent = self.encoder(x)
 
         comm_latent = latent
-        comm_latent = comm_latent.view(config.num_agents, batch_size, config.latent_dim)
+        comm_latent = comm_latent.view(config.num_agents, batch_size, 4*config.map_size[0]*config.map_size[1])
         comm_latent = self.self_attn(comm_latent)
         comm_latent = comm_latent.view(config.num_agents*batch_size, config.latent_dim)
 
@@ -121,12 +121,13 @@ class Network(nn.Module):
 
         latent = torch.cat((latent, comm_latent), 1)
         
-        q_val = self.adv(latent)
+        adv_val = self.adv(latent)
 
         s_val = self.state(latent)
-        qvalue = s_val + q_val - q_val.mean(1, keepdim=True)
+        
+        q_val = s_val + adv_val - adv_val.mean(1, keepdim=True)
 
-        return qvalue.view(batch_size, config.num_agents, config.action_space)
+        return q_val.view(batch_size, config.num_agents, config.action_space)
     
 
 # if __name__ == '__main__':
