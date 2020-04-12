@@ -16,7 +16,7 @@ class Flatten(nn.Module):
 
 class ResBlock(nn.Module):
     def __init__(self, channel):
-        super(ResBlock, self).__init__()
+        super().__init__()
 
         self.conv1 = nn.Conv2d(channel, channel, kernel_size=3, stride=1, padding=1)
 
@@ -36,35 +36,40 @@ class ResBlock(nn.Module):
 
 class SelfAttention(nn.Module):
     def __init__(self, d_model, num_sa_layers=config.num_sa_layers, num_sa_heads=config.num_sa_heads):
-        super(SelfAttention, self).__init__()
+        super().__init__()
 
         self.linear = nn.Sequential(
             nn.Linear(4*config.map_size[0]*config.map_size[1], d_model),
             nn.ReLU(True),
         )
-        self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) for _ in range(config.num_sa_layers)])
-        # self.linears = nn.ModuleList([nn.Sequential(
-        #                                             nn.ReLU(True),
-        #                                         )
+        
+        self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) 
+                                                    for _ in range(config.num_sa_layers)])
 
-        #                                         for _ in range(config.num_sa_layers)])
+        self.linears = nn.ModuleList([nn.Sequential(
+                                                    nn.ReLU(True),
+                                                    nn.Linear(d_model, d_model),
+                                                    nn.ReLU(True),
+                                    )
+
+                                                    for _ in range(config.num_sa_layers)])
 
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
 
         src = self.linear(src)
 
-        for self_attn in self.self_attns:
+        for self_attn, linear in zip(self.self_attns,self.linears) :
         
             src = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
-            src = F.relu(src)
+            src = linear(src)
 
         return src
 
 
 class Network(nn.Module):
     def __init__(self, atom_num, dueling=True, map_size=config.map_size):
-        super(Network, self).__init__()
+        super().__init__()
 
         self.encoder = nn.Sequential(
             
@@ -124,7 +129,7 @@ class Network(nn.Module):
         adv_val = self.adv(latent)
 
         s_val = self.state(latent)
-        
+
         q_val = s_val + adv_val - adv_val.mean(1, keepdim=True)
 
         return q_val.view(batch_size, config.num_agents, config.action_space)

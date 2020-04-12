@@ -7,7 +7,7 @@ num_agents = 2
 obstacle_density = (0.1, 0.2, 0.2, 0.3, 0.3, 0.3, 0.4, 0.4)
 action_space = 5
 obs_dimension = 3
-max_steps = 40
+max_steps = 50
 
 # reward setting
 move_reward = -0.075
@@ -18,7 +18,7 @@ finish_reward = 3
 
 # model setting
 num_kernels = 128
-num_sa_heads = 8
+num_sa_heads = 4
 num_sa_layers = 2
 latent_dim = 256
 
@@ -33,9 +33,9 @@ double_q = True
 buffer_size = 1000
 exploration_fraction = 0.01
 exploration_final_eps = 0.01
-train_freq = buffer_size
+train_freq = 8
 
-learning_starts = buffer_size
+learning_starts = buffer_size // 2
 save_interval = 200000
 target_network_update_freq = buffer_size
 gamma = 0.99

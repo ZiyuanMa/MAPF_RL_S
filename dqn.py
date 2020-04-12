@@ -65,18 +65,28 @@ def learn(  env, number_timesteps,
     """
     # create network and optimizer
     network = Network(atom_num, dueling)
-    network.encoder.load_state_dict(torch.load('./encoder.pth', map_location=torch.device('cpu')))
-    for param in network.encoder.parameters():
+    # network.encoder.load_state_dict(torch.load('./encoder.pth', map_location=torch.device('cpu')))
+    # for param in network.encoder.parameters():
+    #     param.requires_grad = False
+
+
+    # optimizer = Adam(
+    #     filter(lambda p: p.requires_grad, network.parameters()),
+    #     lr=1e-3, eps=1e-5
+    # )
+
+    # create target network
+    qnet = network.to(device)
+    qnet.encoder.load_state_dict(torch.load('./encoder.pth'))
+    for param in qnet.encoder.parameters():
         param.requires_grad = False
 
 
     optimizer = Adam(
-        filter(lambda p: p.requires_grad, network.parameters()),
+        filter(lambda p: p.requires_grad, qnet.parameters()),
         lr=1e-3, eps=1e-5
     )
 
-    # create target network
-    qnet = network.to(device)
     tar_qnet = deepcopy(qnet)
 
     # create replay buffer
@@ -165,20 +175,22 @@ def learn(  env, number_timesteps,
                 priorities = np.average(priorities, axis=1)
                 loss = kl_error.mean()
 
-                optimizer.zero_grad()
-                loss.backward()
-                if grad_norm is not None:
-                    nn.utils.clip_grad_norm_(qnet.parameters(), grad_norm)
-                optimizer.step()
+            optimizer.zero_grad()
 
-                # tar_qnet.self_attn.load_state_dict(qnet.self_attn.parameters())
+            loss.backward()
+            if grad_norm is not None:
+                nn.utils.clip_grad_norm_(qnet.parameters(), grad_norm)
+            optimizer.step()
 
-                if prioritized_replay:
-                    buffer.update_priorities(extra[1], priorities)
+            for tar_net, net in zip(tar_qnet.parameters(), qnet.parameters()):
+                tar_net.data.copy_(0.001*net.data + 0.999*tar_net.data)
+
+            if prioritized_replay:
+                buffer.update_priorities(extra[1], priorities)
 
         # update target net and log
         if n_iter % target_network_update_freq == 0:
-            tar_qnet.load_state_dict(qnet.state_dict())
+            # tar_qnet.load_state_dict(qnet.state_dict())
             # print('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
             print('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
             fps = int(target_network_update_freq / (time.time() - start_ts))
