@@ -8,15 +8,15 @@ from collections import deque
 from copy import deepcopy
 
 import gym
-
+ 
 import numpy as np
 import torch
 import torch.distributions
 from torch.nn.functional import softmax, log_softmax
 
-from buffer import ReplayBuffer, PrioritizedReplayBuffer
-from model import Network
-from environment import Environment
+from buffer2 import ReplayBuffer, PrioritizedReplayBuffer
+from model2 import Network
+from environment2 import Environment
 import config
 from search import find_path
 
@@ -113,14 +113,13 @@ def learn(  env, number_timesteps,
         if prioritized_replay:
             buffer.beta += (1 - prioritized_replay_beta0) / number_timesteps
             
-        *data, info = generator.__next__()
-        buffer.add(*data)
-        for k, v in info.items():
-            infos[k].append(v)
+        data = generator.__next__()
+        buffer.add(data)
+
 
         # update qnet
         if n_iter > learning_starts and n_iter % train_freq == 0:
-            b_obs, b_action, b_reward, b_obs_, b_done, b_steps, *extra = buffer.sample(batch_size)
+            b_bt, b_bt_steps, b_obs, b_action, b_reward, b_obs_, b_done, b_steps, *extra = buffer.sample(batch_size)
 
 
             if atom_num == 1:
@@ -128,7 +127,7 @@ def learn(  env, number_timesteps,
                     
                     # choose max q index from next observation
                     if double_q:
-                        b_action_ = qnet(b_obs_).argmax(2).unsqueeze(2)
+                        b_action_ = qnet(b_obs_)[0].argmax(2).unsqueeze(2)
                         b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).gather(2, b_action_)
                     else:
                         b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).max(2, keepdim=True)[0]
@@ -141,8 +140,8 @@ def learn(  env, number_timesteps,
                 abs_td_error = (b_q[:,0,:] - (b_reward[:,0,:] + (gamma ** b_steps) * b_q_[:,0,:])).abs()
 
                 
-                # priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()
-                # priorities = np.average(priorities, axis=1)
+                priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()
+                priorities = np.average(priorities, axis=1)
 
                 if extra:
                     extra[0] = extra[0].unsqueeze(2)
@@ -207,7 +206,7 @@ def learn(  env, number_timesteps,
 
 def _generate(device, env, qnet, ob_scale,
               number_timesteps, param_noise,
-                exploration_final_eps,
+            exploration_final_eps,
               atom_num, min_value, max_value):
 
     """ Generate training batch sample """
@@ -225,8 +224,7 @@ def _generate(device, env, qnet, ob_scale,
 
     o = torch.from_numpy(o).to(device)
 
-
-    infos = dict()
+    hidden = None
     epsilon = config.exploration_start_eps
     for n in range(1, number_timesteps + 1):
 
@@ -238,20 +236,20 @@ def _generate(device, env, qnet, ob_scale,
         else:
             # sample action
             with torch.no_grad():
-                ob = o.unsqueeze(0)
+                ob = o
 
                 # 1 x 3 x 3 x 8 x 8
-                q = qnet(ob)
+                if hidden is not None:
+                    q, hidden = qnet(ob, hidden)
+                else:
+                    q, hidden = qnet(ob)
                 # 1 x 3 x 5 or 1 x 3 x 5 x atom_num
 
-                    
-                if random.random() < epsilon:
-                    a = q.argmax(2).cpu().tolist()[0]
-                    a[0] = np.random.randint(0, config.action_space)
-                else:
-                    a = q.argmax(2).cpu().tolist()[0]
+                a = q.argmax(1).cpu().tolist()
 
-                
+                if random.random() < epsilon:
+                    a[0] = np.random.randint(0, config.action_space)
+
 
         # take action in env
         o_, r, done, info = env.step(a)
@@ -259,15 +257,11 @@ def _generate(device, env, qnet, ob_scale,
         # print(r)
         
 
-        if info.get('episode'):
-            infos = {
-                'eplenmean': info['episode']['l'],
-                'eprewmean': info['episode']['r'],
-            }
+
         # return data and update observation
 
-        yield (o, a, r, o_, int(done), imitation, infos)
-        infos = dict()
+        yield (o[0,:,:,:], a, r, o_[0,:,:,:], int(done), imitation, info)
+
 
         if not done and env.steps < config.max_steps:
 
@@ -284,6 +278,7 @@ def _generate(device, env, qnet, ob_scale,
 
             o = torch.from_numpy(o).to(device)
 
+            hidden = None
             # if imitation:
             #     print(env.map)
             #     print(env.agents_pos)

@@ -28,12 +28,12 @@ forward_steps = 5
 
 
 grad_norm = 10
-batch_size = 16
+batch_size = 32
 double_q = True
-buffer_size = 2000
-exploration_start_eps = 0.4
+buffer_size = 4000
+exploration_start_eps = 0.2
 exploration_final_eps = 0.05
-train_freq = 8
+train_freq = 32
 
 learning_starts = buffer_size // 2
 save_interval = 50000
@@ -51,3 +51,5 @@ ob_scale = 1
 
 
 imitation_ratio = 0.4
+
+bootstrap_steps = 3
