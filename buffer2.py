@@ -231,7 +231,7 @@ class ReplayBuffer(object):
 
         res = (
             torch.stack(b_bt),
-            torch.FloatTensor(b_bt_steps),
+            b_bt_steps,
             torch.stack(b_obs),
             torch.LongTensor(b_action).to(self._device),
             torch.FloatTensor(b_reward).to(self._device),

@@ -121,7 +121,7 @@ def learn(  env, number_timesteps,
         if n_iter > learning_starts and n_iter % train_freq == 0:
             b_bt, b_bt_steps, b_obs, b_action, b_reward, b_obs_, b_done, b_steps, *extra = buffer.sample(batch_size)
 
-
+            qnet.bootstrap(b_bt, b_bt_steps)
             if atom_num == 1:
                 with torch.no_grad():
                     
