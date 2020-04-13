@@ -28,7 +28,7 @@ random.seed(0)
 def learn(  env, number_timesteps,
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'), save_path='./models', save_interval=config.save_interval,
             ob_scale=config.ob_scale, gamma=config.gamma, grad_norm=config.grad_norm, double_q=config.double_q,
-            param_noise=config.param_noise, dueling=config.dueling, exploration_fraction=config.exploration_fraction,
+            param_noise=config.param_noise, dueling=config.dueling,
             exploration_final_eps=config.exploration_final_eps, batch_size=config.batch_size, train_freq=config.train_freq,
             learning_starts=config.learning_starts, target_network_update_freq=config.target_network_update_freq, buffer_size=config.buffer_size,
             prioritized_replay=config.prioritized_replay, prioritized_replay_alpha=config.prioritized_replay_alpha,
@@ -99,7 +99,7 @@ def learn(  env, number_timesteps,
 
     generator = _generate(device, env, qnet, ob_scale,
                           number_timesteps, param_noise,
-                          exploration_fraction, exploration_final_eps,
+                          exploration_final_eps,
                           atom_num, min_value, max_value)
 
     if atom_num > 1:
@@ -137,11 +137,12 @@ def learn(  env, number_timesteps,
                 b_q = qnet(b_obs).gather(2, b_action)
 
                 b_reward = b_reward.unsqueeze(2)
-                abs_td_error = (b_q - (b_reward + (gamma ** b_steps).unsqueeze(2) * b_q_)).abs()
+
+                abs_td_error = (b_q[:,0,:] - (b_reward[:,0,:] + (gamma ** b_steps) * b_q_[:,0,:])).abs()
 
                 
-                priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()
-                priorities = np.average(np.squeeze(priorities, axis=2), axis=1)
+                # priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()
+                # priorities = np.average(priorities, axis=1)
 
                 if extra:
                     extra[0] = extra[0].unsqueeze(2)
@@ -206,20 +207,13 @@ def learn(  env, number_timesteps,
 
 def _generate(device, env, qnet, ob_scale,
               number_timesteps, param_noise,
-              exploration_fraction, exploration_final_eps,
+                exploration_final_eps,
               atom_num, min_value, max_value):
 
     """ Generate training batch sample """
-    noise_scale = 1e-2
-    action_dim = config.action_space
-    explore_steps = number_timesteps * exploration_fraction
-    imitation_frac = config.imitation_ratio / number_timesteps
-
-    if atom_num > 1:
-        vrange = torch.linspace(min_value, max_value, atom_num).to(device)
+    explore_steps = (config.exploration_start_eps-exploration_final_eps) / number_timesteps
 
     o = env.reset()
-    
     
     # if use imitation learning
     imitation = True if random.random() < config.imitation_ratio else False
@@ -233,17 +227,10 @@ def _generate(device, env, qnet, ob_scale,
 
 
     infos = dict()
+    epsilon = config.exploration_start_eps
     for n in range(1, number_timesteps + 1):
-        epsilon = 1.0 - (1.0 - exploration_final_eps) * n / explore_steps
-        epsilon = max(exploration_final_eps, epsilon)
-
-        config.imitation_ratio -= imitation_frac
 
         if imitation:
-            # if not imitation_actions:
-            #     print(env.map)
-            # print(env.agents_pos)
-            # print(env.goals_pos)
 
             a = imitation_actions.pop(0)
             # print(a)
@@ -257,46 +244,14 @@ def _generate(device, env, qnet, ob_scale,
                 q = qnet(ob)
                 # 1 x 3 x 5 or 1 x 3 x 5 x atom_num
 
-                if atom_num > 1:
-                    q = (q.exp() * vrange).sum(3)
                     
-                if not param_noise:
-                    if random.random() < epsilon:
-                        a = np.random.randint(0, 5, size=config.num_agents).tolist()
-                    else:
-                        a = q.argmax(2).cpu().tolist()[0]
-
+                if random.random() < epsilon:
+                    a = q.argmax(2).cpu().tolist()[0]
+                    a[0] = np.random.randint(0, config.action_space)
                 else:
-                    # see Appendix C of `https://arxiv.org/abs/1706.01905`
-                    raise NotImplementedError('no noise')
+                    a = q.argmax(2).cpu().tolist()[0]
 
-                    q_dict = deepcopy(qnet.state_dict())
-                    for _, m in qnet.named_modules():
-                        if isinstance(m, nn.Linear):
-                            std = torch.empty_like(m.weight).fill_(noise_scale)
-                            m.weight.data.add_(torch.normal(0, std).to(device))
-                            std = torch.empty_like(m.bias).fill_(noise_scale)
-                            m.bias.data.add_(torch.normal(0, std).to(device))
-                    q_perturb = qnet(ob)
-
-                    if atom_num > 1:
-                        q_perturb = (q_perturb.exp() * vrange).sum(2)
-
-                    kl_perturb = ((log_softmax(q, 1) - log_softmax(q_perturb, 1)) *
-                                    softmax(q, 1)).sum(-1).mean()
-
-                    kl_explore = -math.log(1 - epsilon + epsilon / action_dim)
-
-                    if kl_perturb < kl_explore:
-                        noise_scale *= 1.01
-                    else:
-                        noise_scale /= 1.01
-
-                    qnet.load_state_dict(q_dict)
-                    if random.random() < epsilon:
-                        a = int(random.random() * action_dim)
-                    else:
-                        a = q_perturb.argmax(1).cpu().numpy()[0]
+                
 
         # take action in env
         o_, r, done, info = env.step(a)
@@ -334,6 +289,8 @@ def _generate(device, env, qnet, ob_scale,
             #     print(env.agents_pos)
             #     print(env.goals_pos)
             #     print(imitation_actions)
+        
+        epsilon -= explore_steps
             
 
 
@@ -360,4 +317,4 @@ if __name__ == '__main__':
     # print(a[[0,1],[0,1],[0,1]])
 
     env = Environment()
-    learn(env, 20000000)
+    learn(env, 5000000)

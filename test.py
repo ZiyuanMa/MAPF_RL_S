@@ -51,7 +51,7 @@ def test_model():
     with open('./test.pkl', 'rb') as f:
         tests = pickle.load(f)
 
-    checkpoint = config.save_interval * 35
+    checkpoint = config.save_interval * 58
     
     x = []
     y1 = []
@@ -67,7 +67,7 @@ def test_model():
             vrange = torch.linspace(config.min_value, config.max_value, config.atom_num)
 
         env = Environment()
-        case = 0
+        case = 3
         show = True
         show_steps = 10
         sum_reward = 0
