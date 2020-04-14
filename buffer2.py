@@ -193,9 +193,7 @@ class ReplayBuffer(object):
 
 
             bt_step = min(info['step'], config.bootstrap_steps)
-            # if bt_step == 0:
-            #     obs, action, reward, post_obs, done, imitation, info = self._storage[i+1]
-            #     bt_step = min(info['step'], config.bootstrap_steps)
+            
             bootstrap = []
             for j in range(bt_step):
                 pre_idx = (i-j-1) % self._maxsize
@@ -216,8 +214,7 @@ class ReplayBuffer(object):
                 for j in range(1,config.max_steps):
                     next_idx = (i+j) % self._maxsize
                     if next_idx != self._next_idx and not done:
-                        _, _, next_reward, post_obs, done, imitation, *extras = self._storage[next_idx]
-                        assert imitation, 'not imitation'
+                        _, _, next_reward, post_obs, done, imitation, info = self._storage[next_idx]
                         reward += next_reward * config.gamma ** j
                         forward += 1
 
@@ -305,7 +302,13 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         for i in range(batch_size):
             mass = random.random() * every_range_len + i * every_range_len
             idx = self._it_sum.find_prefixsum_idx(mass)
+            _, _, _, _, _, _, info = self._storage[idx]
+            while info['step'] == 0:
+                idx = self._it_sum.find_prefixsum_idx(mass)
+                _, _, _, _, _, _, info = self._storage[idx]
+
             res.append(idx)
+            
         return res
 
     def sample(self, batch_size):

@@ -106,7 +106,6 @@ def learn(  env, number_timesteps,
         delta_z = float(max_value - min_value) / (atom_num - 1)
         z_i = torch.linspace(min_value, max_value, atom_num).to(device)
 
-    infos = {'eplenmean': deque(maxlen=100), 'eprewmean': deque(maxlen=100)}
     start_ts = time.time()
     for n_iter in range(1, number_timesteps + 1):
 
@@ -129,26 +128,23 @@ def learn(  env, number_timesteps,
                         b_action_ = qnet(b_obs_)[0].argmax(1).unsqueeze(1)
                         hidden = tar_qnet.bootstrap(b_bt, b_bt_steps)
                         hidden = tar_qnet.bootstrap(b_obs, hidden=hidden)
-                        b_q_ = (1 - b_done).unsqueeze(1) * tar_qnet(b_obs_, hidden)[0].gather(1, b_action_)
+                        b_q_ = (1 - b_done) * tar_qnet(b_obs_, hidden)[0].gather(1, b_action_)
                     else:
                         hidden = tar_qnet.bootstrap(b_bt, b_bt_steps)
                         hidden = tar_qnet.bootstrap(b_obs, hidden=hidden)
-                        b_q_ = (1 - b_done).unsqueeze(1) * tar_qnet(b_obs_, hidden).max(2, keepdim=True)[0]
+                        b_q_ = (1 - b_done) * tar_qnet(b_obs_, hidden)[0].max(1, keepdim=True)[0]
 
 
-                hidden = tar_qnet.bootstrap(b_bt, b_bt_steps)
+                hidden = qnet.bootstrap(b_bt, b_bt_steps)
                 b_q = qnet(b_obs, hidden)[0].gather(1, b_action)
 
                 # b_reward = b_reward.unsqueeze(2)
 
                 abs_td_error = (b_q - (b_reward + (gamma ** b_steps) * b_q_)).abs()
 
-                
                 priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()
-                priorities = np.average(priorities, axis=1)
 
                 if extra:
-                    extra[0] = extra[0].unsqueeze(2)
                     loss = (extra[0] * huber_loss(abs_td_error)).mean()
                 else:
                     loss = huber_loss(abs_td_error).mean()
@@ -186,6 +182,7 @@ def learn(  env, number_timesteps,
                 nn.utils.clip_grad_norm_(qnet.parameters(), grad_norm)
             optimizer.step()
 
+            # soft update
             for tar_net, net in zip(tar_qnet.parameters(), qnet.parameters()):
                 tar_net.data.copy_(0.001*net.data + 0.999*tar_net.data)
 
