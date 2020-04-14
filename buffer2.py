@@ -191,7 +191,11 @@ class ReplayBuffer(object):
         for i in idxes:
             obs, action, reward, post_obs, done, imitation, info = self._storage[i]
 
+
             bt_step = min(info['step'], config.bootstrap_steps)
+            # if bt_step == 0:
+            #     obs, action, reward, post_obs, done, imitation, info = self._storage[i+1]
+            #     bt_step = min(info['step'], config.bootstrap_steps)
             bootstrap = []
             for j in range(bt_step):
                 pre_idx = (i-j-1) % self._maxsize
@@ -204,7 +208,7 @@ class ReplayBuffer(object):
                 bootstrap.append(torch.randn(4, *config.map_size).to(self._device))
 
 
-            reward = np.copy(reward)
+            # reward = np.copy(reward)
             # look forward
             forward = 1
             if imitation:
@@ -231,10 +235,10 @@ class ReplayBuffer(object):
 
         res = (
             torch.stack(b_bt),
-            b_bt_steps,
+            torch.FloatTensor(b_bt_steps).to(self._device),
             torch.stack(b_obs),
-            torch.LongTensor(b_action).to(self._device),
-            torch.FloatTensor(b_reward).to(self._device),
+            torch.LongTensor(b_action).unsqueeze(1).to(self._device),
+            torch.FloatTensor(b_reward).unsqueeze(1).to(self._device),
             torch.stack(b_post_obs),
             torch.FloatTensor(b_done).unsqueeze(1).to(self._device),
             torch.FloatTensor(b_steps).unsqueeze(1).to(self._device),
@@ -245,7 +249,15 @@ class ReplayBuffer(object):
     def sample(self, batch_size):
         """Sample a batch of experiences."""
         indexes = range(len(self._storage))
-        idxes = [random.choice(indexes) for _ in range(batch_size)]
+        idxes = []
+        for _ in range(batch_size):
+            idx = random.choice(indexes)
+            _, _, _, _, _, _, info = self._storage[idx]
+            while info['step'] == 0:
+                idx = random.choice(indexes)
+                _, _, _, _, _, _, info = self._storage[idx]
+            idxes.append(idx)
+
         return self._encode_sample(idxes)
 
 

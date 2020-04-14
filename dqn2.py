@@ -121,23 +121,27 @@ def learn(  env, number_timesteps,
         if n_iter > learning_starts and n_iter % train_freq == 0:
             b_bt, b_bt_steps, b_obs, b_action, b_reward, b_obs_, b_done, b_steps, *extra = buffer.sample(batch_size)
 
-            qnet.bootstrap(b_bt, b_bt_steps)
             if atom_num == 1:
                 with torch.no_grad():
                     
                     # choose max q index from next observation
                     if double_q:
-                        b_action_ = qnet(b_obs_)[0].argmax(2).unsqueeze(2)
-                        b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).gather(2, b_action_)
+                        b_action_ = qnet(b_obs_)[0].argmax(1).unsqueeze(1)
+                        hidden = tar_qnet.bootstrap(b_bt, b_bt_steps)
+                        hidden = tar_qnet.bootstrap(b_obs, hidden=hidden)
+                        b_q_ = (1 - b_done).unsqueeze(1) * tar_qnet(b_obs_, hidden)[0].gather(1, b_action_)
                     else:
-                        b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).max(2, keepdim=True)[0]
+                        hidden = tar_qnet.bootstrap(b_bt, b_bt_steps)
+                        hidden = tar_qnet.bootstrap(b_obs, hidden=hidden)
+                        b_q_ = (1 - b_done).unsqueeze(1) * tar_qnet(b_obs_, hidden).max(2, keepdim=True)[0]
 
-                b_action = b_action.unsqueeze(2)
-                b_q = qnet(b_obs).gather(2, b_action)
 
-                b_reward = b_reward.unsqueeze(2)
+                hidden = tar_qnet.bootstrap(b_bt, b_bt_steps)
+                b_q = qnet(b_obs, hidden)[0].gather(1, b_action)
 
-                abs_td_error = (b_q[:,0,:] - (b_reward[:,0,:] + (gamma ** b_steps) * b_q_[:,0,:])).abs()
+                # b_reward = b_reward.unsqueeze(2)
+
+                abs_td_error = (b_q - (b_reward + (gamma ** b_steps) * b_q_)).abs()
 
                 
                 priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()
@@ -260,7 +264,7 @@ def _generate(device, env, qnet, ob_scale,
 
         # return data and update observation
 
-        yield (o[0,:,:,:], a, r, o_[0,:,:,:], int(done), imitation, info)
+        yield (o[0,:,:,:], a[0], r[0].item(), o_[0,:,:,:], int(done), imitation, info)
 
 
         if not done and env.steps < config.max_steps:

@@ -255,7 +255,7 @@ class Environment:
         # check done
 
         if np.array_equal(self.agents_pos[0], self.goals_pos[0]):
-            rewards = np.ones(1, dtype=np.float32) * config.finish_reward
+            rewards = np.ones(self.num_agents, dtype=np.float32) * config.finish_reward
             done = True
 
         else:

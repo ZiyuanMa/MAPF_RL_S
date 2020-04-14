@@ -97,8 +97,7 @@ class Network(nn.Module):
 
         return q_val, hidden
     
-    def bootstrap(self, x, steps):
-        assert x.size(1) == config.bootstrap_steps
+    def bootstrap(self, x, steps=None, hidden=None):
 
         x = x.view(-1, 4, *config.map_size)
 
@@ -106,12 +105,14 @@ class Network(nn.Module):
 
         latent = self.linear(latent)
 
-        latent = latent.view(config.batch_size, config.bootstrap_steps, -1)
+        latent = latent.view(config.batch_size, -1, config.latent_dim)
 
-        latent = nn.utils.rnn.pack_padded_sequence(latent, steps, batch_first=True, enforce_sorted=False)
-
-        _, hidden = self.gru(latent)
-
-        hidden = nn.utils.rnn.pad_packed_sequence(hidden, batch_first=False, padding_value=0, total_length=None)
+        if steps is not None:
+            latent = nn.utils.rnn.pack_padded_sequence(latent, steps, batch_first=True, enforce_sorted=False)
+        
+        if hidden is not None:
+            _, hidden = self.gru(latent, hidden)
+        else:
+            _, hidden = self.gru(latent)
 
         return hidden

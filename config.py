@@ -20,7 +20,7 @@ finish_reward = 3
 num_kernels = 128
 num_sa_heads = 4
 num_sa_layers = 2
-latent_dim = 256
+latent_dim = 512
 
 # training setting
 
