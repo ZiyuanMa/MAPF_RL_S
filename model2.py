@@ -83,6 +83,7 @@ class Network(nn.Module):
         latent = self.linear(latent)
 
         latent = latent.unsqueeze(1)
+        self.gru.flatten_parameters()
         if hidden is not None:
             latent, hidden = self.gru(latent, hidden)
         else:
@@ -110,6 +111,7 @@ class Network(nn.Module):
         if steps is not None:
             latent = nn.utils.rnn.pack_padded_sequence(latent, steps, batch_first=True, enforce_sorted=False)
         
+        self.gru.flatten_parameters()
         if hidden is not None:
             _, hidden = self.gru(latent, hidden)
         else:
