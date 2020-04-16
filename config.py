@@ -28,16 +28,16 @@ forward_steps = 5
 
 
 grad_norm = 10
-batch_size = 16
+batch_size = 32
 double_q = True
-buffer_size = 10000
-exploration_start_eps = 0.4
-exploration_final_eps = 0.05
+buffer_size = 50000
+exploration_start_eps = 1.0
+exploration_final_eps = 0.01
 train_freq = 8
 
-learning_starts = 1000
+learning_starts = 20000
 save_interval = 50000
-target_network_update_freq = 500*train_freq
+target_network_update_freq = 1000*train_freq
 gamma = 0.99
 prioritized_replay = True
 prioritized_replay_alpha = 0.6
@@ -50,6 +50,6 @@ max_value = 5
 ob_scale = 1
 
 
-imitation_ratio = 0.4
+imitation_ratio = 0.35
 
-bootstrap_steps = 2
+bootstrap_steps = 3
