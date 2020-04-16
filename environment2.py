@@ -160,6 +160,15 @@ class Environment:
             print(self.agents_pos)
             raise RuntimeError('unique')
 
+
+        if np.array_equal(self.agents_pos[0], self.goals_pos[0]) and actions[0] != 0:
+            print(self.map)
+            print(self.steps)
+            print(self.agents_pos)
+            print(self.goals_pos)
+            print(actions)
+            raise RuntimeError('action != zero')
+
         check_id = [i for i in range(self.num_agents)]
 
         rewards = np.empty(self.num_agents, dtype=np.float32)
@@ -253,13 +262,12 @@ class Environment:
         self.steps += 1
 
         # check done
-
-        if np.array_equal(self.agents_pos[0], self.goals_pos[0]):
-            rewards = np.ones(self.num_agents, dtype=np.float32) * config.finish_reward
-            done = True
-
-        else:
-            done = False
+        done = [False for i in range(self.num_agents)]
+        for i in range(self.num_agents):
+            if np.array_equal(self.agents_pos[i], self.goals_pos[i]):
+                done[i] = True
+                if actions[i] != 0:
+                    rewards[i] = config.finish_reward
 
         info = {'step': self.steps-1}
         return self.observe(), rewards, done, info

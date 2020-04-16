@@ -48,23 +48,21 @@ class Network(nn.Module):
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
-            ResBlock(config.num_kernels),
+            # ResBlock(config.num_kernels),
 
             nn.Conv2d(config.num_kernels, 8, 1, 1),
-            nn.ReLU(),
+            nn.ReLU(True),
 
             Flatten(),
 
         )
 
-        self.linear = nn.Sequential(
-            nn.Linear(8*config.map_size[0]*config.map_size[1], 8*config.map_size[0]*config.map_size[1]),
-            nn.ReLU(True),
-            nn.Linear(8*config.map_size[0]*config.map_size[1], config.latent_dim),
-            nn.ReLU(True),
-        )
+        # self.linear = nn.Sequential(
+        #     nn.Linear(8*config.map_size[0]*config.map_size[1], 8*config.map_size[0]*config.map_size[1]),
+        #     nn.ReLU(True),
+        # )
 
-        self.gru = nn.GRU(config.latent_dim, config.latent_dim, batch_first=True)
+        self.gru = nn.GRU(8*config.map_size[0]*config.map_size[1], config.latent_dim, batch_first=True)
 
         self.adv = nn.Linear(config.latent_dim, config.action_space)
 
@@ -80,7 +78,7 @@ class Network(nn.Module):
 
         latent = self.encoder(x)
 
-        latent = self.linear(latent)
+        # latent = self.linear(latent)
 
         latent = latent.unsqueeze(1)
         self.gru.flatten_parameters()
@@ -104,9 +102,9 @@ class Network(nn.Module):
 
         latent = self.encoder(x)
 
-        latent = self.linear(latent)
+        # latent = self.linear(latent)
 
-        latent = latent.view(config.batch_size, -1, config.latent_dim)
+        latent = latent.view(config.batch_size, -1, 8*config.map_size[0]*config.map_size[1])
 
         if steps is not None:
             latent = nn.utils.rnn.pack_padded_sequence(latent, steps, batch_first=True, enforce_sorted=False)

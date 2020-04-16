@@ -125,6 +125,8 @@ def learn(  env, number_timesteps,
                     
                     # choose max q index from next observation
                     if double_q:
+                        hidden = qnet.bootstrap(b_bt, b_bt_steps)
+                        hidden = qnet.bootstrap(b_obs, hidden=hidden)
                         b_action_ = qnet(b_obs_)[0].argmax(1).unsqueeze(1)
                         hidden = tar_qnet.bootstrap(b_bt, b_bt_steps)
                         hidden = tar_qnet.bootstrap(b_obs, hidden=hidden)
@@ -183,15 +185,15 @@ def learn(  env, number_timesteps,
             optimizer.step()
 
             # soft update
-            for tar_net, net in zip(tar_qnet.parameters(), qnet.parameters()):
-                tar_net.data.copy_(0.001*net.data + 0.999*tar_net.data)
+            # for tar_net, net in zip(tar_qnet.parameters(), qnet.parameters()):
+            #     tar_net.data.copy_(0.001*net.data + 0.999*tar_net.data)
 
             if prioritized_replay:
                 buffer.update_priorities(extra[1], priorities)
 
         # update target net and log
         if n_iter % target_network_update_freq == 0:
-            # tar_qnet.load_state_dict(qnet.state_dict())
+            tar_qnet.load_state_dict(qnet.state_dict())
             # print('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
             print('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
             fps = int(target_network_update_freq / (time.time() - start_ts))
@@ -214,7 +216,7 @@ def _generate(device, env, qnet, ob_scale,
     explore_steps = (config.exploration_start_eps-exploration_final_eps) / number_timesteps
 
     o = env.reset()
-    
+    done = [False for _ in range(env.num_agents)]
     # if use imitation learning
     imitation = True if random.random() < config.imitation_ratio else False
     imitation_actions = find_path(env)
@@ -249,7 +251,11 @@ def _generate(device, env, qnet, ob_scale,
                 a = q.argmax(1).cpu().tolist()
 
                 if random.random() < epsilon:
-                    a[0] = np.random.randint(0, config.action_space)
+                    a[np.random.randint(0, config.num_agents)] = np.random.randint(0, config.action_space)
+                
+                for i, d in enumerate(done):
+                    if d:
+                        a[i] = 0
 
 
         # take action in env
@@ -258,17 +264,17 @@ def _generate(device, env, qnet, ob_scale,
         # print(r)
         
 
-
         # return data and update observation
 
-        yield (o[0,:,:,:], a[0], r[0].item(), o_[0,:,:,:], int(done), imitation, info)
+        yield (o[0,:,:,:], a[0], r[0].item(), o_[0,:,:,:], int(done[0]), imitation, info)
 
 
-        if not done and env.steps < config.max_steps:
+        if done[0] == False and env.steps < config.max_steps:
 
             o = o_ 
         else:
             o = env.reset()
+            done = [False for _ in range(env.num_agents)]
 
             imitation = True if random.random() < config.imitation_ratio else False
             imitation_actions = find_path(env)

@@ -191,7 +191,6 @@ class ReplayBuffer(object):
         for i in idxes:
             obs, action, reward, post_obs, done, imitation, info = self._storage[i]
 
-
             bt_step = min(info['step'], config.bootstrap_steps)
             
             bootstrap = []
@@ -304,6 +303,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             idx = self._it_sum.find_prefixsum_idx(mass)
             _, _, _, _, _, _, info = self._storage[idx]
             while info['step'] == 0:
+                mass = random.random() * every_range_len + i * every_range_len
                 idx = self._it_sum.find_prefixsum_idx(mass)
                 _, _, _, _, _, _, info = self._storage[idx]
 
