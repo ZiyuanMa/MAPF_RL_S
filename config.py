@@ -1,12 +1,9 @@
-import math
-
-
 # environment setting
 map_size = (9, 9)
 num_agents = 2
 obstacle_density = (0.1, 0.2, 0.2, 0.3, 0.3, 0.3, 0.4, 0.4)
 action_space = 5
-obs_dimension = 3
+obs_dimension = 4
 max_steps = 50
 
 # reward setting
@@ -18,8 +15,6 @@ finish_reward = 3
 
 # model setting
 num_kernels = 128
-num_sa_heads = 4
-num_sa_layers = 2
 latent_dim = 512
 
 # training setting
@@ -28,28 +23,22 @@ forward_steps = 5
 
 
 grad_norm = 10
-batch_size = 32
+batch_size = 64
 double_q = True
 buffer_size = 50000
 exploration_start_eps = 1.0
 exploration_final_eps = 0.01
 train_freq = 8
 
-learning_starts = 20000
+learning_starts = 30000
 save_interval = 50000
 target_network_update_freq = 1000*train_freq
 gamma = 0.99
 prioritized_replay = True
 prioritized_replay_alpha = 0.6
 prioritized_replay_beta0 = 0.4
-param_noise = False
 dueling = True
-atom_num = 1
-min_value = -5
-max_value = 5
-ob_scale = 1
 
-
-imitation_ratio = 0.35
+imitation_ratio = 0.4
 
 bootstrap_steps = 3

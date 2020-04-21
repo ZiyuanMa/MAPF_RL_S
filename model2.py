@@ -37,7 +37,7 @@ class ResBlock(nn.Module):
 
 
 class Network(nn.Module):
-    def __init__(self, atom_num, dueling=True, map_size=config.map_size):
+    def __init__(self, dueling=True, map_size=config.map_size):
         super().__init__()
 
         self.encoder = nn.Sequential(
@@ -50,19 +50,19 @@ class Network(nn.Module):
             ResBlock(config.num_kernels),
             # ResBlock(config.num_kernels),
 
-            nn.Conv2d(config.num_kernels, 8, 1, 1),
+            nn.Conv2d(config.num_kernels, 16, 1, 1),
             nn.ReLU(True),
 
             Flatten(),
 
         )
 
-        # self.linear = nn.Sequential(
-        #     nn.Linear(8*config.map_size[0]*config.map_size[1], 8*config.map_size[0]*config.map_size[1]),
-        #     nn.ReLU(True),
-        # )
+        self.linear = nn.Sequential(
+            nn.Linear(16*config.map_size[0]*config.map_size[1], config.latent_dim),
+            nn.ReLU(True),
+        )
 
-        self.gru = nn.GRU(8*config.map_size[0]*config.map_size[1], config.latent_dim, batch_first=True)
+        # self.gru = nn.GRUCell(16*config.map_size[0]*config.map_size[1], config.latent_dim)
 
         self.adv = nn.Linear(config.latent_dim, config.action_space)
 
@@ -78,15 +78,12 @@ class Network(nn.Module):
 
         latent = self.encoder(x)
 
-        # latent = self.linear(latent)
+        latent = self.linear(latent)
 
-        latent = latent.unsqueeze(1)
-        self.gru.flatten_parameters()
-        if hidden is not None:
-            latent, hidden = self.gru(latent, hidden)
-        else:
-            latent, hidden = self.gru(latent)
-        latent = latent.squeeze(1)
+        # if hidden is not None:
+        #     hidden = self.gru(latent, hidden)
+        # else:
+        #     hidden = self.gru(latent)
         
         adv_val = self.adv(latent)
 
@@ -96,23 +93,23 @@ class Network(nn.Module):
 
         return q_val, hidden
     
-    def bootstrap(self, x, steps=None, hidden=None):
+    # def bootstrap(self, x, steps=None, hidden=None):
+    #     # batch_size x steps x obs
+    #     step = x.size(1)
 
-        x = x.view(-1, 4, *config.map_size)
+    #     x = x.view(-1, 4, *config.map_size)
 
-        latent = self.encoder(x)
+    #     latent = self.encoder(x)
 
-        # latent = self.linear(latent)
+    #     latent = latent.view(config.batch_size, step, 16*config.map_size[0]*config.map_size[1]).permute(1, 0, 2)
 
-        latent = latent.view(config.batch_size, -1, 8*config.map_size[0]*config.map_size[1])
+    #     if hidden is not None:
+    #         for i in range(step): 
+    #             hidden = self.gru(latent[i], hidden)
+    #     else:
+            
+    #         hidden = self.gru(latent[0])
+    #         for i in range(1, step): 
+    #             hidden = self.gru(latent[i], hidden)
 
-        if steps is not None:
-            latent = nn.utils.rnn.pack_padded_sequence(latent, steps, batch_first=True, enforce_sorted=False)
-        
-        self.gru.flatten_parameters()
-        if hidden is not None:
-            _, hidden = self.gru(latent, hidden)
-        else:
-            _, hidden = self.gru(latent)
-
-        return hidden
+    #     return hidden

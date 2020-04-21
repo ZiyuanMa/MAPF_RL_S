@@ -45,13 +45,13 @@ def create_test():
 def test_model():
 
 
-    network = Network(config.atom_num, config.dueling)
+    network = Network(config.dueling)
 
 
     with open('./test.pkl', 'rb') as f:
         tests = pickle.load(f)
 
-    checkpoint = config.save_interval * 80
+    checkpoint = config.save_interval
     
     x = []
     y1 = []
@@ -63,12 +63,11 @@ def test_model():
         state_dict = torch.load('./models/'+str(checkpoint)+'.pth')
         network.load_state_dict(state_dict)
         network.eval()
-        if config.atom_num > 1:
-            vrange = torch.linspace(config.min_value, config.max_value, config.atom_num)
+
 
         env = Environment()
         case = 0
-        show = True
+        show = False
         show_steps = 20
         sum_reward = 0
         fail = 0
@@ -88,13 +87,13 @@ def test_model():
                 obs = torch.from_numpy(obs).float()
 
                 with torch.no_grad():
-                    if hidden is not None:
-                        q_vals, hidden = network(obs, hidden)
-                    else:
-                        q_vals, hidden = network(obs)
+                    # if hidden is not None:
+                    #     q_vals, hidden = network(obs, hidden)
+                    # else:
+                    #     q_vals, hidden = network(obs)
 
-                if config.atom_num > 1:
-                    q_vals = (q_vals.exp() * vrange).sum(2)
+                    q_vals, hidden = network(obs)
+
 
                 if i == case and show and env.steps < show_steps:
                     print(q_vals)
@@ -143,79 +142,9 @@ def test_model():
     # plt.plot(x, y2, 'g-')
     # plt.show()
 
-# def test_init_model():
-
-
-#     network = Network(config.atom_num, config.dueling)
-    
-#     with open('./test.pkl', 'rb') as f:
-#         tests = pickle.load(f)
-
-#     network.encoder.load_state_dict(torch.load('./encoder.pth', map_location=torch.device('cpu')))
-#     network.q.load_state_dict(torch.load('./q.pth', map_location=torch.device('cpu')))
-#     network.state.load_state_dict(torch.load('./state.pth', map_location=torch.device('cpu')))
-#     network.eval()
-
-#     env = Environment()
-#     case = 3
-#     show = True
-#     show_steps = 15
-#     sum_reward = 0
-#     fail = 0
-#     optimal = 0
-
-#     for i in range(200):
-#         env.load(tests['maps'][i], tests['agents'][i], tests['goals'][i])
-        
-#         done = False
-#         round_reward = 0
-#         while not done and env.steps<config.max_steps:
-#             if i == case and show and env.steps < show_steps:
-#                 env.render()
-
-#             obs = env.observe()
-#             obs = np.expand_dims(obs, axis=0)
-#             obs = torch.from_numpy(obs).float()
-
-#             with torch.no_grad():
-#                 q_vals = network(obs)
-
-#             if config.atom_num > 1:
-#                 q_vals = (q_vals.exp() * vrange).sum(2)
-
-#             if i == case and show and env.steps < show_steps:
-#                 print(q_vals)
-
-#             action = torch.argmax(q_vals, 2).tolist()[0]
-#             # print(action)
-#             obs, reward, done, _ = env.step(action)
-
-#             round_reward += sum(reward) / env.num_agents
-        
-#         sum_reward += round_reward
-
-#         if not np.array_equal(env.agents_pos, env.goals_pos):
-#             fail += 1
-#             if show:
-#                 print(i)
-
-#         if round_reward == tests['rewards'][i]:
-#             optimal += 1
-
-#         if i == case and show:
-#             env.close()
-
-#     sum_reward /= test_case
-
-
-#     print('test score: %.3f' %sum_reward)
-#     print('fail: %d' %fail)
-#     print('optimal: %d' %optimal)
-#     print('best score: %.3f' %(sum(tests['rewards'])/test_case))
 
     
 
 if __name__ == '__main__':
     create_test()
     test_model()
-    # test_init_model()

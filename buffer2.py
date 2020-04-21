@@ -185,25 +185,19 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
-        b_bt, b_bt_steps, b_obs, b_action, b_reward, b_post_obs, b_done, b_steps = [], [], [], [], [], [], [], []
+        b_bt, b_obs, b_action, b_reward, b_post_obs, b_done, b_steps = [], [], [], [], [], [], []
 
 
         for i in idxes:
             obs, action, reward, post_obs, done, imitation, info = self._storage[i]
-
-            bt_step = min(info['step'], config.bootstrap_steps)
             
             bootstrap = []
-            for j in range(bt_step):
+            for j in range(config.bootstrap_steps):
                 pre_idx = (i-j-1) % self._maxsize
                 pre_obs, _, _, _, _, _, _ = self._storage[pre_idx]
                 bootstrap.append(pre_obs)
 
             bootstrap.reverse()
-
-            while len(bootstrap) < config.bootstrap_steps:
-                bootstrap.append(torch.randn(4, *config.map_size).to(self._device))
-
 
             # reward = np.copy(reward)
             # look forward
@@ -221,7 +215,6 @@ class ReplayBuffer(object):
                         break
 
             b_bt.append(torch.stack(bootstrap))
-            b_bt_steps.append(bt_step)
             b_obs.append(obs)
             b_action.append(action)
             b_reward.append(reward)
@@ -231,7 +224,6 @@ class ReplayBuffer(object):
 
         res = (
             torch.stack(b_bt),
-            torch.FloatTensor(b_bt_steps).to(self._device),
             torch.stack(b_obs),
             torch.LongTensor(b_action).unsqueeze(1).to(self._device),
             torch.FloatTensor(b_reward).unsqueeze(1).to(self._device),
@@ -302,7 +294,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             mass = random.random() * every_range_len + i * every_range_len
             idx = self._it_sum.find_prefixsum_idx(mass)
             _, _, _, _, _, _, info = self._storage[idx]
-            while info['step'] == 0:
+            while info['step'] < config.bootstrap_steps:
                 mass = random.random() * every_range_len + i * every_range_len
                 idx = self._it_sum.find_prefixsum_idx(mass)
                 _, _, _, _, _, _, info = self._storage[idx]
