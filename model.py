@@ -55,9 +55,10 @@ class Network(nn.Module):
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
-            ResBlock(config.num_kernels),
+            # ResBlock(config.num_kernels),
 
             nn.Conv2d(config.num_kernels, 16, 1, 1),
+            nn.BatchNorm2d(16),
             nn.ReLU(True),
 
             Flatten(),
