@@ -73,28 +73,41 @@ class Environment:
         self.obstacle_density = random.choice(config.obstacle_density)
         self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
         partition_list = map_partition(self.map)
-        partition = sorted(partition_list, key= lambda x: len(x), reverse=True)[0]
-        # partition_list = [ partition for partition in partition_list if len(partition) >= 4 ]
+        # partition = sorted(partition_list, key= lambda x: len(x), reverse=True)[0]
+        partition_list = [ partition for partition in partition_list if len(partition) >= 2 ]
 
-        while len(partition) < self.num_agents*3:
+        while len(partition_list) == 0:
             self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
             partition_list = map_partition(self.map)
-            partition = sorted(partition_list, key= lambda x: len(x), reverse=True)[0]
-            # partition_list = [ partition for partition in partition_list if len(partition) >= 4 ]
+            # partition = sorted(partition_list, key= lambda x: len(x), reverse=True)[0]
+            partition_list = [ partition for partition in partition_list if len(partition) >= 2 ]
         
         
         self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int8)
         self.goals_pos = np.empty((self.num_agents, 2), dtype=np.int8)
+
+        pos_num = sum([len(partition) for partition in partition_list])
         
         for i in range(self.num_agents):
 
-            pos = random.choice(partition)
-            partition.remove(pos)
+            pos_idx = random.randint(0, pos_num-1)
+            partition_idx = 0
+            for partition in partition_list:
+                if pos_idx >= len(partition):
+                    pos_idx -= len(partition)
+                    partition_idx += 1
+                else:
+                    break 
+
+            pos = random.choice(partition_list[partition_idx])
+            partition_list[partition_idx].remove(pos)
             self.agents_pos[i] = np.asarray(pos, dtype=np.int8)
 
-            pos = random.choice(partition)
-            partition.remove(pos)
+            pos = random.choice(partition_list[partition_idx])
+            partition_list[partition_idx].remove(pos)
             self.goals_pos[i] = np.asarray(pos, dtype=np.int8)
+
+            pos_num -= 2
 
         self.steps = 0
 
@@ -103,28 +116,41 @@ class Environment:
         self.obstacle_density = random.choice(config.obstacle_density)
         self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
         partition_list = map_partition(self.map)
-        partition = sorted(partition_list, key= lambda x: len(x), reverse=True)[0]
-        # partition_list = [ partition for partition in partition_list if len(partition) >= 4 ]
+        # partition = sorted(partition_list, key= lambda x: len(x), reverse=True)[0]
+        partition_list = [ partition for partition in partition_list if len(partition) >= 2 ]
 
         while len(partition) < self.num_agents*3:
             self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
             partition_list = map_partition(self.map)
-            partition = sorted(partition_list, key= lambda x: len(x), reverse=True)[0]
-            # partition_list = [ partition for partition in partition_list if len(partition) >= 4 ]
+            # partition = sorted(partition_list, key= lambda x: len(x), reverse=True)[0]
+            partition_list = [ partition for partition in partition_list if len(partition) >= 2 ]
         
         
         self.agents_pos = np.empty((self.num_agents, 2), dtype=np.int8)
         self.goals_pos = np.empty((self.num_agents, 2), dtype=np.int8)
+
+        pos_num = sum([len(partition) for partition in partition_list])
         
         for i in range(self.num_agents):
 
-            pos = random.choice(partition)
-            partition.remove(pos)
+            pos_idx = random.randint(0, pos_num-1)
+            partition_idx = 0
+            for partition in partition_list:
+                if pos_idx >= len(partition):
+                    pos_idx -= len(partition)
+                    partition_idx += 1
+                else:
+                    break 
+
+            pos = random.choice(partition_list[partition_idx])
+            partition_list[partition_idx].remove(pos)
             self.agents_pos[i] = np.asarray(pos, dtype=np.int8)
 
-            pos = random.choice(partition)
-            partition.remove(pos)
+            pos = random.choice(partition_list[partition_idx])
+            partition_list[partition_idx].remove(pos)
             self.goals_pos[i] = np.asarray(pos, dtype=np.int8)
+
+            pos_num -= 2
 
         self.steps = 0
 
