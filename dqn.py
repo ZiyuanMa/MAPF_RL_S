@@ -8,15 +8,15 @@ from collections import deque
 from copy import deepcopy
 
 import gym
-
+ 
 import numpy as np
 import torch
 import torch.distributions
 from torch.nn.functional import softmax, log_softmax
 
-from buffer import ReplayBuffer, PrioritizedReplayBuffer
-from model import Network
-from environment import Environment
+from buffer2 import ReplayBuffer, PrioritizedReplayBuffer
+from model2 import Network
+from environment2 import Environment
 import config
 from search import find_path
 
@@ -27,44 +27,15 @@ random.seed(0)
 
 def learn(  env, number_timesteps,
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'), save_path='./models', save_interval=config.save_interval,
-            ob_scale=config.ob_scale, gamma=config.gamma, grad_norm=config.grad_norm, double_q=config.double_q,
-            param_noise=config.param_noise, dueling=config.dueling,
+            gamma=config.gamma, grad_norm=config.grad_norm, double_q=config.double_q,
+            dueling=config.dueling,
             exploration_final_eps=config.exploration_final_eps, batch_size=config.batch_size, train_freq=config.train_freq,
             learning_starts=config.learning_starts, target_network_update_freq=config.target_network_update_freq, buffer_size=config.buffer_size,
             prioritized_replay=config.prioritized_replay, prioritized_replay_alpha=config.prioritized_replay_alpha,
-            prioritized_replay_beta0=config.prioritized_replay_beta0, atom_num=config.atom_num, min_value=config.min_value, max_value=config.max_value):
-    """
-    Papers:
-    Mnih V, Kavukcuoglu K, Silver D, et al. Human-level control through deep
-    reinforcement learning[J]. Nature, 2015, 518(7540): 529.
-    Hessel M, Modayil J, Van Hasselt H, et al. Rainbow: Combining Improvements
-    in Deep Reinforcement Learning[J]. 2017.
+            prioritized_replay_beta0=config.prioritized_replay_beta0):
 
-    Parameters:
-    ----------
-    double_q (bool): if True double DQN will be used
-    param_noise (bool): whether or not to use parameter space noise
-    dueling (bool): if True dueling value estimation will be used
-    exploration_fraction (float): fraction of entire training period over which
-                                  the exploration rate is annealed
-    exploration_final_eps (float): final value of random action probability
-    batch_size (int): size of a batched sampled from replay buffer for training
-    train_freq (int): update the model every `train_freq` steps
-    learning_starts (int): how many steps of the model to collect transitions
-                           for before learning starts
-    target_network_update_freq (int): update the target network every
-                                      `target_network_update_freq` steps
-    buffer_size (int): size of the replay buffer
-    prioritized_replay (bool): if True prioritized replay buffer will be used.
-    prioritized_replay_alpha (float): alpha parameter for prioritized replay
-    prioritized_replay_beta0 (float): beta parameter for prioritized replay
-    atom_num (int): atom number in distributional RL for atom_num > 1
-    min_value (float): min value in distributional RL
-    max_value (float): max value in distributional RL
-
-    """
     # create network and optimizer
-    network = Network(atom_num, dueling)
+    network = Network(dueling)
     # network.encoder.load_state_dict(torch.load('./encoder.pth', map_location=torch.device('cpu')))
     # for param in network.encoder.parameters():
     #     param.requires_grad = False
@@ -97,84 +68,58 @@ def learn(  env, number_timesteps,
     else:
         buffer = ReplayBuffer(buffer_size, device)
 
-    generator = _generate(device, env, qnet, ob_scale,
-                          number_timesteps, param_noise,
-                          exploration_final_eps,
-                          atom_num, min_value, max_value)
+    generator = _generate(device, env, qnet,
+                          number_timesteps,
+                          exploration_final_eps)
 
-    if atom_num > 1:
-        delta_z = float(max_value - min_value) / (atom_num - 1)
-        z_i = torch.linspace(min_value, max_value, atom_num).to(device)
-
-    infos = {'eplenmean': deque(maxlen=100), 'eprewmean': deque(maxlen=100)}
     start_ts = time.time()
     for n_iter in range(1, number_timesteps + 1):
 
         if prioritized_replay:
             buffer.beta += (1 - prioritized_replay_beta0) / number_timesteps
             
-        *data, info = generator.__next__()
-        buffer.add(*data)
-        for k, v in info.items():
-            infos[k].append(v)
+        data = generator.__next__()
+        buffer.add(data)
+
 
         # update qnet
         if n_iter > learning_starts and n_iter % train_freq == 0:
-            b_obs, b_action, b_reward, b_obs_, b_done, b_steps, *extra = buffer.sample(batch_size)
+            b_bt, b_obs, b_action, b_reward, b_obs_, b_done, b_steps, *extra = buffer.sample(batch_size)
 
 
-            if atom_num == 1:
-                with torch.no_grad():
-                    
-                    # choose max q index from next observation
-                    if double_q:
-                        b_action_ = qnet(b_obs_).argmax(2).unsqueeze(2)
-                        b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).gather(2, b_action_)
-                    else:
-                        b_q_ = (1 - b_done).unsqueeze(2) * tar_qnet(b_obs_).max(2, keepdim=True)[0]
-
-                b_action = b_action.unsqueeze(2)
-                b_q = qnet(b_obs).gather(2, b_action)
-
-                b_reward = b_reward.unsqueeze(2)
-
-                abs_td_error = (b_q[:,0,:] - (b_reward[:,0,:] + (gamma ** b_steps) * b_q_[:,0,:])).abs()
-
+            with torch.no_grad():
                 
-                # priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()
-                # priorities = np.average(priorities, axis=1)
-
-                if extra:
-                    extra[0] = extra[0].unsqueeze(2)
-                    loss = (extra[0] * huber_loss(abs_td_error)).mean()
+                # choose max q index from next observation
+                if double_q:
+                    # hidden = qnet.bootstrap(b_bt)
+                    # hidden = qnet.bootstrap(b_obs, hidden=hidden)
+                    # b_action_ = qnet(b_obs_, hidden)[0].argmax(1).unsqueeze(1)
+                    b_action_ = qnet(b_obs_)[0].argmax(1).unsqueeze(1)
+                    # hidden = tar_qnet.bootstrap(b_bt, b_bt_steps)
+                    # hidden = tar_qnet.bootstrap(b_obs, hidden=hidden)
+                    # b_q_ = (1 - b_done) * tar_qnet(b_obs_, hidden)[0].gather(1, b_action_)
+                    b_q_ = (1 - b_done) * tar_qnet(b_obs_)[0].gather(1, b_action_)
                 else:
-                    loss = huber_loss(abs_td_error).mean()
+                    hidden = tar_qnet.bootstrap(b_bt)
+                    hidden = tar_qnet.bootstrap(b_obs, hidden=hidden)
+                    b_q_ = (1 - b_done) * tar_qnet(b_obs_, hidden)[0].max(1, keepdim=True)[0]
 
+
+            # hidden = qnet.bootstrap(b_bt, b_bt_steps)
+            # b_q = qnet(b_obs, hidden)[0].gather(1, b_action)
+            b_q = qnet(b_obs)[0].gather(1, b_action)
+
+            # b_reward = b_reward.unsqueeze(2)
+
+            abs_td_error = (b_q - (b_reward + (gamma ** b_steps) * b_q_)).abs()
+
+            priorities = abs_td_error.detach().cpu().clamp(1e-6).numpy()
+
+            if extra:
+                loss = (extra[0] * huber_loss(abs_td_error)).mean()
             else:
-                batch_idx = torch.ones(config.num_agents, dtype=torch.long).unsqueeze(0) * torch.arange(batch_size, dtype=torch.long).unsqueeze(1)
-                agent_idx = torch.arange(config.num_agents, dtype=torch.long).unsqueeze(0) * torch.ones(batch_size, dtype=torch.long).unsqueeze(1)
+                loss = huber_loss(abs_td_error).mean()
 
-                with torch.no_grad():
-                    b_dist_ = tar_qnet(b_obs_).exp()
-                    b_action_ = (b_dist_ * z_i).sum(-1).argmax(2)
-                    b_tzj = ((gamma**b_steps * (1 - b_done) * z_i[None, :]).unsqueeze(1) + b_reward.unsqueeze(2)).clamp(min_value, max_value)
-                    b_i = (b_tzj - min_value) / delta_z
-                    b_lower = b_i.floor()
-                    b_upper = b_i.ceil()
-                    b_m = torch.zeros(batch_size, config.num_agents, atom_num).to(device)
-
-                    temp = b_dist_[batch_idx, agent_idx, b_action_, :]
-
-                    b_m.scatter_add_(2, b_lower.long(), temp * (b_upper - b_i))
-                    b_m.scatter_add_(2, b_upper.long(), temp * (b_i - b_lower))
-
-                b_q = qnet(b_obs)[batch_idx, agent_idx, b_action, :]
-
-                kl_error = -(b_q * b_m).sum(2)
-                # use kl error as priorities as proposed by Rainbow
-                priorities = kl_error.detach().cpu().clamp(1e-6).numpy()
-                priorities = np.average(priorities, axis=1)
-                loss = kl_error.mean()
 
             optimizer.zero_grad()
 
@@ -183,16 +128,17 @@ def learn(  env, number_timesteps,
                 nn.utils.clip_grad_norm_(qnet.parameters(), grad_norm)
             optimizer.step()
 
-            for tar_net, net in zip(tar_qnet.parameters(), qnet.parameters()):
-                tar_net.data.copy_(0.001*net.data + 0.999*tar_net.data)
+            # soft update
+            # for tar_net, net in zip(tar_qnet.parameters(), qnet.parameters()):
+            #     tar_net.data.copy_(0.001*net.data + 0.999*tar_net.data)
 
             if prioritized_replay:
                 buffer.update_priorities(extra[1], priorities)
 
         # update target net and log
         if n_iter % target_network_update_freq == 0:
-            # tar_qnet.load_state_dict(qnet.state_dict())
-            # print('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
+            tar_qnet.load_state_dict(qnet.state_dict())
+
             print('{} Iter {} {}'.format('=' * 10, n_iter, '=' * 10))
             fps = int(target_network_update_freq / (time.time() - start_ts))
             start_ts = time.time()
@@ -205,16 +151,15 @@ def learn(  env, number_timesteps,
             torch.save(qnet.state_dict(), os.path.join(save_path, '{}.pth'.format(n_iter)))
 
 
-def _generate(device, env, qnet, ob_scale,
-              number_timesteps, param_noise,
-                exploration_final_eps,
-              atom_num, min_value, max_value):
+def _generate(device, env, qnet,
+              number_timesteps,
+            exploration_final_eps):
 
     """ Generate training batch sample """
     explore_steps = (config.exploration_start_eps-exploration_final_eps) / number_timesteps
 
     o = env.reset()
-    
+    done = [False for _ in range(env.num_agents)]
     # if use imitation learning
     imitation = True if random.random() < config.imitation_ratio else False
     imitation_actions = find_path(env)
@@ -225,8 +170,7 @@ def _generate(device, env, qnet, ob_scale,
 
     o = torch.from_numpy(o).to(device)
 
-
-    infos = dict()
+    hidden = None
     epsilon = config.exploration_start_eps
     for n in range(1, number_timesteps + 1):
 
@@ -238,42 +182,47 @@ def _generate(device, env, qnet, ob_scale,
         else:
             # sample action
             with torch.no_grad():
-                ob = o.unsqueeze(0)
+                ob = o
 
                 # 1 x 3 x 3 x 8 x 8
-                q = qnet(ob)
+                if hidden is not None:
+                    q, hidden = qnet(ob, hidden)
+                else:
+                    q, hidden = qnet(ob)
                 # 1 x 3 x 5 or 1 x 3 x 5 x atom_num
 
-                    
-                if random.random() < epsilon:
-                    a = q.argmax(2).cpu().tolist()[0]
-                    a[0] = np.random.randint(0, config.action_space)
-                else:
-                    a = q.argmax(2).cpu().tolist()[0]
+                a = q.argmax(1).cpu().tolist()
 
+                if random.random() < epsilon:
+                    a[np.random.randint(0, config.num_agents)] = np.random.randint(0, config.action_space)
                 
+                for i, d in enumerate(done):
+                    if d:
+                        a[i] = 0
+
 
         # take action in env
         o_, r, done, info = env.step(a)
+
+        # env.render()
+        # print(a)
+        # print(r)
+
         o_ = torch.from_numpy(o_).to(device)
         # print(r)
         
 
-        if info.get('episode'):
-            infos = {
-                'eplenmean': info['episode']['l'],
-                'eprewmean': info['episode']['r'],
-            }
         # return data and update observation
 
-        yield (o, a, r, o_, int(done), imitation, infos)
-        infos = dict()
+        yield (o[0,:,:,:], a[0], r[0].item(), o_[0,:,:,:], int(done[0]), imitation, info)
 
-        if not done and env.steps < config.max_steps:
+
+        if done[0] == False and env.steps < config.max_steps:
 
             o = o_ 
         else:
             o = env.reset()
+            done = [False for _ in range(env.num_agents)]
 
             imitation = True if random.random() < config.imitation_ratio else False
             imitation_actions = find_path(env)
@@ -284,6 +233,7 @@ def _generate(device, env, qnet, ob_scale,
 
             o = torch.from_numpy(o).to(device)
 
+            hidden = None
             # if imitation:
             #     print(env.map)
             #     print(env.agents_pos)
@@ -297,10 +247,6 @@ def _generate(device, env, qnet, ob_scale,
 def huber_loss(abs_td_error):
     flag = (abs_td_error < 1).float()
     return flag * abs_td_error.pow(2) * 0.5 + (1 - flag) * (abs_td_error - 0.5)
-
-
-def scale_ob(array, device, scale):
-    return torch.from_numpy(array.astype(np.float32) * scale).to(device)
 
 
 class Flatten(nn.Module):

@@ -177,7 +177,7 @@ class ReplayBuffer(object):
     def __len__(self):
         return len(self._storage)
 
-    def add(self, *args):
+    def add(self, args):
         if self._next_idx >= len(self._storage):
             self._storage.append(args)
         else:
@@ -185,13 +185,21 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
-        b_obs, b_action, b_reward, b_post_obs, b_done, b_steps = [], [], [], [], [], []
+        b_bt, b_obs, b_action, b_reward, b_post_obs, b_done, b_steps = [], [], [], [], [], [], []
+
 
         for i in idxes:
-            obs, action, reward, post_obs, done, imitation, *extras = self._storage[i]
+            obs, action, reward, post_obs, done, imitation, info = self._storage[i]
+            
+            bootstrap = []
+            for j in range(config.bootstrap_steps):
+                pre_idx = (i-j-1) % self._maxsize
+                pre_obs, _, _, _, _, _, _ = self._storage[pre_idx]
+                bootstrap.append(pre_obs)
 
-            reward = np.copy(reward)
+            bootstrap.reverse()
 
+            # reward = np.copy(reward)
             # look forward
             forward = 1
             if imitation:
@@ -199,14 +207,14 @@ class ReplayBuffer(object):
                 for j in range(1,config.max_steps):
                     next_idx = (i+j) % self._maxsize
                     if next_idx != self._next_idx and not done:
-                        _, _, next_reward, post_obs, done, imitation, *extras = self._storage[next_idx]
-                        assert imitation, 'not imitation'
+                        _, _, next_reward, post_obs, done, imitation, info = self._storage[next_idx]
                         reward += next_reward * config.gamma ** j
                         forward += 1
 
                     else:
                         break
 
+            b_bt.append(torch.stack(bootstrap))
             b_obs.append(obs)
             b_action.append(action)
             b_reward.append(reward)
@@ -215,9 +223,10 @@ class ReplayBuffer(object):
             b_steps.append(forward)
 
         res = (
+            torch.stack(b_bt),
             torch.stack(b_obs),
-            torch.LongTensor(b_action).to(self._device),
-            torch.FloatTensor(b_reward).to(self._device),
+            torch.LongTensor(b_action).unsqueeze(1).to(self._device),
+            torch.FloatTensor(b_reward).unsqueeze(1).to(self._device),
             torch.stack(b_post_obs),
             torch.FloatTensor(b_done).unsqueeze(1).to(self._device),
             torch.FloatTensor(b_steps).unsqueeze(1).to(self._device),
@@ -228,7 +237,15 @@ class ReplayBuffer(object):
     def sample(self, batch_size):
         """Sample a batch of experiences."""
         indexes = range(len(self._storage))
-        idxes = [random.choice(indexes) for _ in range(batch_size)]
+        idxes = []
+        for _ in range(batch_size):
+            idx = random.choice(indexes)
+            _, _, _, _, _, _, info = self._storage[idx]
+            while info['step'] == 0:
+                idx = random.choice(indexes)
+                _, _, _, _, _, _, info = self._storage[idx]
+            idxes.append(idx)
+
         return self._encode_sample(idxes)
 
 
@@ -276,7 +293,14 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         for i in range(batch_size):
             mass = random.random() * every_range_len + i * every_range_len
             idx = self._it_sum.find_prefixsum_idx(mass)
+            _, _, _, _, _, _, info = self._storage[idx]
+            while info['step'] < config.bootstrap_steps:
+                mass = random.random() * every_range_len + i * every_range_len
+                idx = self._it_sum.find_prefixsum_idx(mass)
+                _, _, _, _, _, _, info = self._storage[idx]
+
             res.append(idx)
+            
         return res
 
     def sample(self, batch_size):

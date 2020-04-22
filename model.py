@@ -19,14 +19,20 @@ class ResBlock(nn.Module):
         super().__init__()
 
         self.conv1 = nn.Conv2d(channel, channel, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(channel)
 
         self.conv2 = nn.Conv2d(channel, channel, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(channel)
 
     def forward(self, x):
         identity = x
 
-        out = F.relu(self.conv1(x))
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = F.relu(out)
+
         out = self.conv2(out)
+        out = self.bn2(out)
 
         out += identity
 
@@ -34,97 +40,57 @@ class ResBlock(nn.Module):
 
         return out
 
-class SelfAttention(nn.Module):
-    def __init__(self, d_model, num_sa_layers=config.num_sa_layers, num_sa_heads=config.num_sa_heads):
-        super().__init__()
-
-        self.linear = nn.Sequential(
-            nn.Linear(4*config.map_size[0]*config.map_size[1], d_model),
-            nn.ReLU(True),
-        )
-        
-        self.self_attns = nn.ModuleList([nn.MultiheadAttention(d_model, config.num_sa_heads) 
-                                                    for _ in range(config.num_sa_layers)])
-
-        self.linears = nn.ModuleList([nn.Sequential(
-                                                    nn.ReLU(True),
-                                                    nn.Linear(d_model, d_model),
-                                                    nn.ReLU(True),
-                                    )
-
-                                                    for _ in range(config.num_sa_layers)])
-
-
-    def forward(self, src, src_mask=None, src_key_padding_mask=None):
-
-        src = self.linear(src)
-
-        for self_attn, linear in zip(self.self_attns,self.linears) :
-        
-            src = self_attn(src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
-            src = linear(src)
-
-        return src
 
 
 class Network(nn.Module):
-    def __init__(self, atom_num, dueling=True, map_size=config.map_size):
+    def __init__(self, dueling=True, map_size=config.map_size):
         super().__init__()
 
         self.encoder = nn.Sequential(
             
-            nn.Conv2d(3, config.num_kernels, 3, 1, 1),
-            nn.ReLU(),
+            nn.Conv2d(4, config.num_kernels, 3, 1, 1),
+            nn.BatchNorm2d(config.num_kernels),
+            nn.ReLU(True),
             
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
 
-            nn.Conv2d(config.num_kernels, 4, 1, 1),
-            nn.ReLU(),
+            nn.Conv2d(config.num_kernels, 16, 1, 1),
+            nn.ReLU(True),
 
             Flatten(),
 
         )
 
-        self.self_attn = SelfAttention(config.latent_dim)
         self.linear = nn.Sequential(
-            nn.Linear(4*config.map_size[0]*config.map_size[1], config.latent_dim),
+            nn.Linear(16*config.map_size[0]*config.map_size[1], config.latent_dim),
             nn.ReLU(True),
         )
 
-        
-        self.adv = nn.Linear(2*config.latent_dim, config.action_space)
+        # self.gru = nn.GRUCell(16*config.map_size[0]*config.map_size[1], config.latent_dim)
 
-        if dueling:
-            self.state = nn.Linear(2*config.latent_dim, 1)
+        self.adv = nn.Linear(config.latent_dim, config.action_space)
+
+        self.state = nn.Linear(config.latent_dim, 1)
 
         for _, m in self.named_modules():
-            if isinstance(m, nn.Linear):
+            if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
                 nn.init.xavier_uniform_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
     
-    def forward(self, x):
-
-        assert x.dim() == 5, str(x.shape)
-
-
-        batch_size = x.size(0)
-
-        x = x.view(-1, 3, config.map_size[0], config.map_size[1])
+    def forward(self, x, hidden=None):
 
         latent = self.encoder(x)
 
-        comm_latent = latent
-        comm_latent = comm_latent.view(config.num_agents, batch_size, 4*config.map_size[0]*config.map_size[1])
-        comm_latent = self.self_attn(comm_latent)
-        comm_latent = comm_latent.view(config.num_agents*batch_size, config.latent_dim)
-
         latent = self.linear(latent)
 
-        latent = torch.cat((latent, comm_latent), 1)
+        # if hidden is not None:
+        #     hidden = self.gru(latent, hidden)
+        # else:
+        #     hidden = self.gru(latent)
         
         adv_val = self.adv(latent)
 
@@ -132,12 +98,25 @@ class Network(nn.Module):
 
         q_val = s_val + adv_val - adv_val.mean(1, keepdim=True)
 
-        return q_val.view(batch_size, config.num_agents, config.action_space)
+        return q_val, hidden
     
+    # def bootstrap(self, x, steps=None, hidden=None):
+    #     # batch_size x steps x obs
+    #     step = x.size(1)
 
-# if __name__ == '__main__':
-#     t = torch.rand(2, 4)
-#     # values, indices = torch.argmax(t, 0)
-#     print(t)
-#     m = torch.LongTensor([[1],[2]])
-#     print(t.gather(1,m))
+    #     x = x.view(-1, 4, *config.map_size)
+
+    #     latent = self.encoder(x)
+
+    #     latent = latent.view(config.batch_size, step, 16*config.map_size[0]*config.map_size[1]).permute(1, 0, 2)
+
+    #     if hidden is not None:
+    #         for i in range(step): 
+    #             hidden = self.gru(latent[i], hidden)
+    #     else:
+            
+    #         hidden = self.gru(latent[0])
+    #         for i in range(1, step): 
+    #             hidden = self.gru(latent[i], hidden)
+
+    #     return hidden
