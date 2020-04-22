@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-from environment2 import Environment
-from model2 import Network
+from environment import Environment
+from model import Network
 import config
 from search import find_path
 import pickle
@@ -51,7 +51,7 @@ def test_model():
     with open('./test.pkl', 'rb') as f:
         tests = pickle.load(f)
 
-    checkpoint = config.save_interval
+    checkpoint = config.save_interval * 13
     
     x = []
     y1 = []
@@ -146,5 +146,5 @@ def test_model():
     
 
 if __name__ == '__main__':
-    create_test()
-    # test_model()
+    # create_test()
+    test_model()

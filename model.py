@@ -76,10 +76,10 @@ class Network(nn.Module):
 
         self.state = nn.Linear(config.latent_dim, 1)
 
-        for _, m in self.named_modules():
-            if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
-                nn.init.xavier_uniform_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+        # for _, m in self.named_modules():
+        #     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+        #         nn.init.xavier_uniform_(m.weight, 1)
+        #         nn.init.constant_(m.bias, 0)
 
     
     def forward(self, x, hidden=None):

@@ -107,7 +107,8 @@ class Environment:
             partition_list[partition_idx].remove(pos)
             self.goals_pos[i] = np.asarray(pos, dtype=np.int8)
 
-            pos_num -= 2
+            partition_list = [ partition for partition in partition_list if len(partition) >= 2 ]
+            pos_num = sum([len(partition) for partition in partition_list])
 
         self.steps = 0
 
@@ -119,7 +120,7 @@ class Environment:
         # partition = sorted(partition_list, key= lambda x: len(x), reverse=True)[0]
         partition_list = [ partition for partition in partition_list if len(partition) >= 2 ]
 
-        while len(partition) < self.num_agents*3:
+        while len(partition_list) == 0:
             self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
             partition_list = map_partition(self.map)
             # partition = sorted(partition_list, key= lambda x: len(x), reverse=True)[0]
@@ -150,7 +151,8 @@ class Environment:
             partition_list[partition_idx].remove(pos)
             self.goals_pos[i] = np.asarray(pos, dtype=np.int8)
 
-            pos_num -= 2
+            partition_list = [ partition for partition in partition_list if len(partition) >= 2 ]
+            pos_num = sum([len(partition) for partition in partition_list])
 
         self.steps = 0
 

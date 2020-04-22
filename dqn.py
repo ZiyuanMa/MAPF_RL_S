@@ -14,9 +14,9 @@ import torch
 import torch.distributions
 from torch.nn.functional import softmax, log_softmax
 
-from buffer2 import ReplayBuffer, PrioritizedReplayBuffer
-from model2 import Network
-from environment2 import Environment
+from buffer import ReplayBuffer, PrioritizedReplayBuffer
+from model import Network
+from environment import Environment
 import config
 from search import find_path
 
@@ -263,4 +263,4 @@ if __name__ == '__main__':
     # print(a[[0,1],[0,1],[0,1]])
 
     env = Environment()
-    learn(env, 5000000)
+    learn(env, 4000000)
