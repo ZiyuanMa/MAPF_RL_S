@@ -18,10 +18,10 @@ class ResBlock(nn.Module):
     def __init__(self, channel):
         super().__init__()
 
-        self.conv1 = nn.Conv2d(channel, channel, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(channel, channel, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(channel)
 
-        self.conv2 = nn.Conv2d(channel, channel, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(channel, channel, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(channel)
 
     def forward(self, x):
@@ -48,7 +48,7 @@ class Network(nn.Module):
 
         self.encoder = nn.Sequential(
             
-            nn.Conv2d(4, config.num_kernels, 3, 1, 1),
+            nn.Conv2d(4, config.num_kernels, 3, 1, 1, bias=False),
             nn.BatchNorm2d(config.num_kernels),
             nn.ReLU(True),
             
@@ -57,7 +57,7 @@ class Network(nn.Module):
             ResBlock(config.num_kernels),
             # ResBlock(config.num_kernels),
 
-            nn.Conv2d(config.num_kernels, 16, 1, 1),
+            nn.Conv2d(config.num_kernels, 16, 1, 1, bias=False),
             nn.BatchNorm2d(16),
             nn.ReLU(True),
 
