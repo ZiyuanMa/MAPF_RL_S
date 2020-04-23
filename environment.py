@@ -74,7 +74,7 @@ class Environment:
             0 = empty
             1 = obstacle
         '''
-        self.num_agents = num_agents
+        self.num_agents = random.randint(2, 4)
         self.map_size = map_size
         self.obstacle_density = random.choice(config.obstacle_density)
         self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
@@ -122,6 +122,7 @@ class Environment:
 
     def reset(self):
 
+        self.num_agents = random.randint(2, 4)
         self.obstacle_density = random.choice(config.obstacle_density)
         self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
         partition_list = map_partition(self.map)
@@ -198,6 +199,7 @@ class Environment:
             print(self.steps)
             print(self.map)
             print(self.agents_pos)
+            print(self.history[-2])
             raise RuntimeError('unique')
 
 
@@ -252,7 +254,24 @@ class Environment:
                 next_pos[agent_id] = self.agents_pos[agent_id]
                 check_id.remove(agent_id)
 
+        # agent swap
+        for agent_id in check_id.copy():
+            if np.any(np.all(next_pos[agent_id]==self.agents_pos, axis=1)):
 
+                target_agent_id = np.where(np.all(next_pos[agent_id]==self.agents_pos, axis=1))
+                assert len(target_agent_id) == 1, 'target > 1'
+
+                if np.array_equal(next_pos[target_agent_id], self.agents_pos[agent_id]):
+                    assert target_agent_id in check_id, 'not in check'
+
+                    next_pos[agent_id] = self.agents_pos[agent_id]
+                    rewards[agent_id] = config.collision_reward
+
+                    next_pos[target_agent_id] = self.agents_pos[target_agent_id]
+                    rewards[target_agent_id] = config.collision_reward
+
+                    check_id.remove(agent_id)
+                    check_id.remove(target_agent_id)
 
         flag = False
         while not flag:
@@ -295,26 +314,7 @@ class Environment:
                     flag = False
                     break
 
-                elif np.any(np.all(next_pos[agent_id]==self.agents_pos, axis=1)):
-                    # agent swap
-
-                    target_agent_id = np.where(np.all(next_pos[agent_id]==self.agents_pos, axis=1))
-                    assert len(target_agent_id) == 1, 'target > 1'
-
-                    if np.array_equal(next_pos[target_agent_id], self.agents_pos[agent_id]):
-                        assert target_agent_id in check_id, 'not in check'
-
-                        next_pos[agent_id] = self.agents_pos[agent_id]
-                        rewards[agent_id] = config.collision_reward
-
-                        next_pos[target_agent_id] = self.agents_pos[target_agent_id]
-                        rewards[target_agent_id] = config.collision_reward
-
-                        check_id.remove(agent_id)
-                        check_id.remove(target_agent_id)
-
-                        flag = False
-                        break
+                
 
         self.history.append(np.copy(self.agents_pos))
         self.agents_pos = np.copy(next_pos)
@@ -330,6 +330,13 @@ class Environment:
                     rewards[i] = config.finish_reward
 
         info = {'step': self.steps-1}
+
+        if np.unique(self.agents_pos, axis=0).shape[0] < self.num_agents:
+            print(self.steps)
+            print(self.map)
+            print(self.agents_pos)
+            print(self.history[-2])
+            raise RuntimeError('unique')
         return self.observe(), rewards, done, info
 
 

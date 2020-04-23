@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torch.optim import Adam
+from torch.optim import Adam, lr_scheduler
 import math
 import os
 import random
@@ -47,15 +47,13 @@ def learn(  env, number_timesteps,
 
     # create target network
     qnet = network.to(device)
-    qnet.load_state_dict(torch.load('./model2.pth'))
+    # qnet.load_state_dict(torch.load('./model2.pth'))
     # for param in qnet.encoder.parameters():
     #     param.requires_grad = False
 
 
-    optimizer = Adam(
-        filter(lambda p: p.requires_grad, qnet.parameters()),
-        lr=2e-4, eps=1e-5
-    )
+    optimizer = Adam(filter(lambda p: p.requires_grad, qnet.parameters()), lr=5e-4)
+    scheduler = lr_scheduler.StepLR(optimizer, 50000, gamma=0.5)
 
     tar_qnet = deepcopy(qnet)
 
@@ -114,7 +112,10 @@ def learn(  env, number_timesteps,
             loss.backward()
             if grad_norm is not None:
                 nn.utils.clip_grad_norm_(qnet.parameters(), grad_norm)
+
             optimizer.step()
+
+            scheduler.step()
 
             # soft update
             # for tar_net, net in zip(tar_qnet.parameters(), qnet.parameters()):
@@ -134,6 +135,7 @@ def learn(  env, number_timesteps,
 
             if n_iter > learning_starts and n_iter % train_freq == 0:
                 print('vloss: {:.6f}'.format(loss.item()))
+            
 
         if save_interval and n_iter % save_interval == 0:
             torch.save(qnet.state_dict(), os.path.join(save_path, '{}.pth'.format(n_iter)))
