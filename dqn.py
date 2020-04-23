@@ -178,7 +178,7 @@ def _generate(device, env, qnet,
                 a = q.argmax(1).cpu().tolist()
 
                 if random.random() < epsilon:
-                    a[np.random.randint(0, config.num_agents)] = np.random.randint(0, config.action_space)
+                    a[0] = np.random.randint(0, config.action_space)
                 
                 for i, d in enumerate(done):
                     if d:
@@ -237,4 +237,4 @@ if __name__ == '__main__':
     # print(a[[0,1],[0,1],[0,1]])
 
     env = Environment()
-    learn(env, 5000000)
+    learn(env, 2000000)

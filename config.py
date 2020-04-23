@@ -39,6 +39,6 @@ prioritized_replay_alpha = 0.6
 prioritized_replay_beta0 = 0.4
 dueling = True
 
-imitation_ratio = 0.4
+imitation_ratio = 0.25
 
 history_steps = 3
