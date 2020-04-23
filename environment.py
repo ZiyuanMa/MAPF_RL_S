@@ -302,7 +302,7 @@ class Environment:
 
                         collide_agent_id.remove(collide_agent_pos[0][2])
 
-                        check_id.remove(collide_agent_pos[0][2])
+                        # check_id.remove(collide_agent_pos[0][2])
 
                     next_pos[collide_agent_id] = self.agents_pos[collide_agent_id]
                     for id in collide_agent_id:

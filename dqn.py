@@ -52,8 +52,8 @@ def learn(  env, number_timesteps,
     #     param.requires_grad = False
 
 
-    optimizer = Adam(filter(lambda p: p.requires_grad, qnet.parameters()), lr=5e-4)
-    scheduler = lr_scheduler.StepLR(optimizer, 50000, gamma=0.5)
+    optimizer = Adam(filter(lambda p: p.requires_grad, qnet.parameters()))
+    scheduler = lr_scheduler.StepLR(optimizer, 100000, gamma=0.5)
 
     tar_qnet = deepcopy(qnet)
 
@@ -239,4 +239,4 @@ if __name__ == '__main__':
     # print(a[[0,1],[0,1],[0,1]])
 
     env = Environment()
-    learn(env, 1000000)
+    learn(env, 2500000)
