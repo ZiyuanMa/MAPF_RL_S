@@ -56,8 +56,9 @@ class Network(nn.Module):
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
+            ResBlock(config.num_kernels),
 
-            nn.Conv2d(config.num_kernels, 16, 1, 1, bias=False),
+            nn.Conv2d(2*config.num_kernels, 16, 1, 1, bias=False),
             nn.BatchNorm2d(16),
             nn.ReLU(True),
 
@@ -68,16 +69,20 @@ class Network(nn.Module):
         self.linear = nn.Sequential(
             nn.Linear(16*config.map_size[0]*config.map_size[1], config.latent_dim),
             nn.ReLU(True),
+            nn.Linear(config.latent_dim, config.latent_dim),
+            nn.ReLU(True),
         )
 
         self.adv = nn.Linear(config.latent_dim, config.action_space)
 
         self.state = nn.Linear(config.latent_dim, 1)
 
-        # for _, m in self.named_modules():
-        #     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
-        #         nn.init.xavier_uniform_(m.weight, 1)
-        #         nn.init.constant_(m.bias, 0)
+        for _, m in self.named_modules():
+            if isinstance(m, nn.Linear):
+                nn.init.orthogonal_(m.weight)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Conv2d):
+                torch.nn.init.kaiming_uniform_(m.weight, mode='fan_in', nonlinearity='relu')
 
     
     def forward(self, x):

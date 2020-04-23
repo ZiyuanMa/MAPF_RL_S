@@ -47,14 +47,14 @@ def learn(  env, number_timesteps,
 
     # create target network
     qnet = network.to(device)
-    # qnet.encoder.load_state_dict(torch.load('./encoder.pth'))
+    qnet.load_state_dict(torch.load('./model2.pth'))
     # for param in qnet.encoder.parameters():
     #     param.requires_grad = False
 
 
     optimizer = Adam(
         filter(lambda p: p.requires_grad, qnet.parameters()),
-        lr=1e-3, eps=1e-5
+        lr=2e-4, eps=1e-5
     )
 
     tar_qnet = deepcopy(qnet)
@@ -237,4 +237,4 @@ if __name__ == '__main__':
     # print(a[[0,1],[0,1],[0,1]])
 
     env = Environment()
-    learn(env, 2000000)
+    learn(env, 1000000)

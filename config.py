@@ -19,7 +19,7 @@ latent_dim = 512
 
 # training setting
 
-forward_steps = 5
+n_steps = 5
 
 
 grad_norm = 10
@@ -31,7 +31,7 @@ exploration_final_eps = 0.01
 train_freq = 8
 
 learning_starts = 30000
-save_interval = 50000
+save_interval = 20000
 target_network_update_freq = 1000*train_freq
 gamma = 0.99
 prioritized_replay = True

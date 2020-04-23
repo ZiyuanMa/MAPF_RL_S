@@ -264,7 +264,27 @@ class Environment:
                     # collide agent
 
                     collide_agent_id = np.where(np.all(next_pos==next_pos[agent_id], axis=1))[0].tolist()
-                    collide_agent_id = [ id for id in collide_agent_id if id in check_id]
+                    all_in = True
+                    for id in collide_agent_id:
+                        if id not in check_id:
+                            all_in =False
+                            break
+
+                    if not all_in:
+                        # agent collide no movement agent
+                        collide_agent_id = [ id for id in collide_agent_id if id in check_id]
+
+                    else:
+
+                        collide_agent_pos = next_pos[collide_agent_id].tolist()
+                        for pos, id in zip(collide_agent_pos, collide_agent_id):
+                            pos.append(id)
+                        collide_agent_pos.sort(key=lambda x: x[0]*self.map_size[0]+x[1])
+
+                        collide_agent_id.remove(collide_agent_pos[0][2])
+
+                        check_id.remove(collide_agent_pos[0][2])
+
                     next_pos[collide_agent_id] = self.agents_pos[collide_agent_id]
                     for id in collide_agent_id:
                         rewards[id] = config.collision_reward
