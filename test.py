@@ -47,7 +47,7 @@ def test_model(num_agents):
     with open('./test{}.pkl'.format(num_agents), 'rb') as f:
         tests = pickle.load(f)
 
-    checkpoint = config.save_interval
+    checkpoint = config.save_interval * 20
     
     x = []
     y1 = []
@@ -62,8 +62,8 @@ def test_model(num_agents):
 
 
         env = Environment()
-        case = 0
-        show = True
+        case = 158
+        show = False
         show_steps = 20
         sum_reward = 0
         fail = 0

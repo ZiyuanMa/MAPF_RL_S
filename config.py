@@ -27,7 +27,7 @@ batch_size = 64
 double_q = True
 buffer_size = 50000
 exploration_start_eps = 1.0
-exploration_final_eps = 0.1
+exploration_final_eps = 0.01
 train_freq = 8
 
 learning_starts = 30000
