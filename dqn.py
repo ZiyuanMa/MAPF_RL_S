@@ -11,8 +11,7 @@ import gym
  
 import numpy as np
 import torch
-import torch.distributions
-from torch.nn.functional import softmax, log_softmax
+import argparse
 
 from buffer import ReplayBuffer, PrioritizedReplayBuffer
 from model import Network
@@ -230,14 +229,6 @@ def _generate(device, env, qnet,
 def huber_loss(abs_td_error):
     flag = (abs_td_error < 1).float()
     return flag * abs_td_error.pow(2) * 0.5 + (1 - flag) * (abs_td_error - 0.5)
-
-
-class Flatten(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
-        return x.contiguous().view(x.size(0), -1)
 
 
 if __name__ == '__main__':

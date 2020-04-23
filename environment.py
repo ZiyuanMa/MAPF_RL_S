@@ -10,6 +10,12 @@ from typing import List
 
 action_list = np.array([[0, 0],[-1, 0],[1, 0],[0, -1],[0, 1]], dtype=np.int8)
 
+color_map = np.array([[255, 255, 255],   # white
+                    [190, 190, 190],   # gray
+                    [0, 191, 255],   # blue
+                    [255, 165, 0],   # orange
+                    [0, 250, 154]])  # green
+
 
 def map_partition(map):
 
@@ -333,9 +339,9 @@ class Environment:
                 map[tuple(self.agents_pos[agent_id])] = 2
                 map[tuple(self.goals_pos[agent_id])] = 3
 
-        cmap = colors.ListedColormap(['white','grey','lime','purple','gold'])
-        plt.imshow(map, cmap=cmap)
-        plt.xlabel(str(self.steps))
+        map = map.astype(np.uint8)
+        plt.imshow(color_map[map])
+        plt.xlabel('step: {}'.format(self.steps))
         plt.ion()
         plt.show()
         plt.pause(0.5)

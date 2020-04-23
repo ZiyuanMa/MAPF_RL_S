@@ -38,13 +38,13 @@ def create_test(num_agents):
         pickle.dump(tests, f)
 
 
-def test_model():
+def test_model(num_agents):
 
 
     network = Network(config.dueling)
 
 
-    with open('./test.pkl', 'rb') as f:
+    with open('./test{}.pkl'.format(num_agents), 'rb') as f:
         tests = pickle.load(f)
 
     checkpoint = config.save_interval
@@ -63,10 +63,11 @@ def test_model():
 
         env = Environment()
         case = 0
-        show = False
+        show = True
         show_steps = 20
         sum_reward = 0
         fail = 0
+        optimal = 0
 
         for i in range(200):
             env.load(tests['maps'][i], tests['agents'][i], tests['goals'][i])
@@ -146,7 +147,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.mode == 'test':
-        test_model()
+        test_model(args.number)
     elif args.mode == 'create':
         create_test(args.number)
     
