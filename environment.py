@@ -255,11 +255,11 @@ class Environment:
                 check_id.remove(agent_id)
 
         # agent swap
-        for agent_id in check_id.copy():
+        for agent_id in check_id:
             if np.any(np.all(next_pos[agent_id]==self.agents_pos, axis=1)):
 
-                target_agent_id = np.where(np.all(next_pos[agent_id]==self.agents_pos, axis=1))
-                assert len(target_agent_id) == 1, 'target > 1'
+                target_agent_id = np.where(np.all(next_pos[agent_id]==self.agents_pos, axis=1))[0].item()
+                # assert len(target_agent_id) == 1, 'target > 1'
 
                 if np.array_equal(next_pos[target_agent_id], self.agents_pos[agent_id]):
                     assert target_agent_id in check_id, 'not in check'
@@ -272,7 +272,7 @@ class Environment:
 
                     check_id.remove(agent_id)
                     check_id.remove(target_agent_id)
-
+        back = check_id.copy()
         flag = False
         while not flag:
             
@@ -316,7 +316,7 @@ class Environment:
 
                 
 
-        self.history.append(np.copy(self.agents_pos))
+        self.history.append(np.copy(next_pos))
         self.agents_pos = np.copy(next_pos)
 
         self.steps += 1
@@ -335,7 +335,7 @@ class Environment:
             print(self.steps)
             print(self.map)
             print(self.agents_pos)
-            print(self.history[-2])
+            print(self.history[-1])
             raise RuntimeError('unique')
         return self.observe(), rewards, done, info
 
