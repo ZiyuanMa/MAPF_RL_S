@@ -112,6 +112,8 @@ class Environment:
 
         self.steps = 0
 
+        self.history = [np.copy(self.agents_pos)]
+
     def reset(self):
 
         self.obstacle_density = random.choice(config.obstacle_density)
@@ -156,6 +158,8 @@ class Environment:
 
         self.steps = 0
 
+        self.history = [np.copy(self.agents_pos)]
+
         return self.observe()
 
     def load(self, world: np.ndarray, agents_pos: np.ndarray, goals_pos: np.ndarray):
@@ -165,6 +169,8 @@ class Environment:
         self.goals_pos = np.copy(goals_pos)
 
         assert agents_pos.shape[0] == self.num_agents
+
+        self.history = [np.copy(self.agents_pos)]
         
         self.steps = 0
 
@@ -284,7 +290,7 @@ class Environment:
                         flag = False
                         break
 
-
+        self.history.append(np.copy(self.agents_pos))
         self.agents_pos = np.copy(next_pos)
 
         self.steps += 1
@@ -302,14 +308,18 @@ class Environment:
 
 
     def observe(self):
-        obs = np.zeros((self.num_agents, 4, self.map_size[0], self.map_size[1]), dtype=np.float32)
+        obs = np.zeros((self.num_agents, 3+config.history_steps, self.map_size[0], self.map_size[1]), dtype=np.float32)
         for i in range(self.num_agents):
             obs[i,0][tuple(self.agents_pos[i])] = 1
+
             obs[i,1][tuple(self.goals_pos[i])] = 1
-            other_agents = [j for j in range(self.num_agents) if j != i]
-            for j in other_agents:
-                obs[i,2][tuple(self.agents_pos[j])] = 1
-            obs[i,3,:,:] = np.copy(self.map==0)
+
+            other_agents = [id for id in range(self.num_agents) if id != i]
+            for step in range(config.history_steps):
+                for id in other_agents:
+                    obs[i,1+config.history_steps-step][tuple(self.history[max(self.steps-step, 0)][id])] = 1
+
+            obs[i,2+config.history_steps,:,:] = np.copy(self.map==0)
 
         return obs
 

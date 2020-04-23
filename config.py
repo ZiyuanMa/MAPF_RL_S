@@ -27,7 +27,7 @@ batch_size = 64
 double_q = True
 buffer_size = 50000
 exploration_start_eps = 1.0
-exploration_final_eps = 0.01
+exploration_final_eps = 0.1
 train_freq = 8
 
 learning_starts = 30000
@@ -41,4 +41,4 @@ dueling = True
 
 imitation_ratio = 0.4
 
-bootstrap_steps = 3
+history_steps = 3

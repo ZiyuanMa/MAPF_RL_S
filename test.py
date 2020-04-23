@@ -8,17 +8,18 @@ import pickle
 import os
 import matplotlib.pyplot as plt
 import random
+import argparse
 torch.manual_seed(0)
 np.random.seed(0)
 random.seed(0)
 test_case = 200
 
-def create_test():
+def create_test(num_agents):
 
-    tests = {'maps': [], 'agents': [], 'goals': [], 'rewards': []}
+    tests = {'maps': [], 'agents': [], 'goals': [], 'opt_steps': []}
 
     for _ in range(test_case):
-        env = Environment()
+        env = Environment(num_agents=num_agents)
         tests['maps'].append(np.copy(env.map))
         tests['agents'].append(np.copy(env.agents_pos))
         tests['goals'].append(np.copy(env.goals_pos))
@@ -31,14 +32,9 @@ def create_test():
             tests['goals'][-1] = np.copy(env.goals_pos)
             actions = find_path(env)
 
-        # sum_reward = 0
-        # for action in actions:
-        #     _, reward, _, _ = env.step(action)
-        #     sum_reward += sum(reward) / env.num_agents
+        tests['opt_steps'].append(len(actions))
 
-        # tests['rewards'].append(sum_reward)
-
-    with open('./test.pkl', 'wb') as f:
+    with open('./test{}.pkl'.format(env.num_agents), 'wb') as f:
         pickle.dump(tests, f)
 
 
@@ -51,7 +47,7 @@ def test_model():
     with open('./test.pkl', 'rb') as f:
         tests = pickle.load(f)
 
-    checkpoint = config.save_interval * 13
+    checkpoint = config.save_interval
     
     x = []
     y1 = []
@@ -76,7 +72,7 @@ def test_model():
             env.load(tests['maps'][i], tests['agents'][i], tests['goals'][i])
             
             done = [False for _ in range(env.num_agents)]
-            hidden = None
+
             round_reward = 0
             while False in done and env.steps<config.max_steps:
                 if i == case and show and env.steps < show_steps:
@@ -87,12 +83,8 @@ def test_model():
                 obs = torch.from_numpy(obs).float()
 
                 with torch.no_grad():
-                    # if hidden is not None:
-                    #     q_vals, hidden = network(obs, hidden)
-                    # else:
-                    #     q_vals, hidden = network(obs)
 
-                    q_vals, hidden = network(obs)
+                    q_vals = network(obs)
 
 
                 if i == case and show and env.steps < show_steps:
@@ -119,8 +111,8 @@ def test_model():
                 if show:
                     print(i)
 
-            # if round_reward == tests['rewards'][i]:
-            #     optimal += 1
+            if env.steps == tests['opt_steps'][i]:
+                optimal += 1
 
             if i == case and show:
                 env.close()
@@ -130,7 +122,7 @@ def test_model():
         print('---------checkpoint '+str(checkpoint)+'---------------')
         print('test score: %.3f' %sum_reward)
         print('fail: %d' %fail)
-        # print('optimal: %d' %optimal)
+        print('optimal: %d' %optimal)
         # print('best score: %.3f' %(sum(tests['rewards'])/test_case))
 
         # x.append(checkpoint)
@@ -146,5 +138,15 @@ def test_model():
     
 
 if __name__ == '__main__':
-    # create_test()
-    test_model()
+    parser = argparse.ArgumentParser(description='test MAPF model')
+
+    parser.add_argument('--mode', type=str, choices=['test', 'create'], default='test', help='create test set or run test set')
+    parser.add_argument('--number', type=int, default=config.num_agents, help='number of agents in environment')
+
+    args = parser.parse_args()
+
+    if args.mode == 'test':
+        test_model()
+    elif args.mode == 'create':
+        create_test(args.number)
+    

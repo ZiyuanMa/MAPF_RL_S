@@ -84,32 +84,21 @@ def learn(  env, number_timesteps,
 
         # update qnet
         if n_iter > learning_starts and n_iter % train_freq == 0:
-            b_bt, b_obs, b_action, b_reward, b_obs_, b_done, b_steps, *extra = buffer.sample(batch_size)
+            b_obs, b_action, b_reward, b_obs_, b_done, b_steps, *extra = buffer.sample(batch_size)
 
 
             with torch.no_grad():
                 
                 # choose max q index from next observation
                 if double_q:
-                    # hidden = qnet.bootstrap(b_bt)
-                    # hidden = qnet.bootstrap(b_obs, hidden=hidden)
-                    # b_action_ = qnet(b_obs_, hidden)[0].argmax(1).unsqueeze(1)
-                    b_action_ = qnet(b_obs_)[0].argmax(1).unsqueeze(1)
-                    # hidden = tar_qnet.bootstrap(b_bt, b_bt_steps)
-                    # hidden = tar_qnet.bootstrap(b_obs, hidden=hidden)
-                    # b_q_ = (1 - b_done) * tar_qnet(b_obs_, hidden)[0].gather(1, b_action_)
-                    b_q_ = (1 - b_done) * tar_qnet(b_obs_)[0].gather(1, b_action_)
+                    b_action_ = qnet(b_obs_).argmax(1).unsqueeze(1)
+                    b_q_ = (1 - b_done) * tar_qnet(b_obs_).gather(1, b_action_)
                 else:
-                    hidden = tar_qnet.bootstrap(b_bt)
-                    hidden = tar_qnet.bootstrap(b_obs, hidden=hidden)
-                    b_q_ = (1 - b_done) * tar_qnet(b_obs_, hidden)[0].max(1, keepdim=True)[0]
+
+                    b_q_ = (1 - b_done) * tar_qnet(b_obs_).max(1, keepdim=True)[0]
 
 
-            # hidden = qnet.bootstrap(b_bt, b_bt_steps)
-            # b_q = qnet(b_obs, hidden)[0].gather(1, b_action)
-            b_q = qnet(b_obs)[0].gather(1, b_action)
-
-            # b_reward = b_reward.unsqueeze(2)
+            b_q = qnet(b_obs).gather(1, b_action)
 
             abs_td_error = (b_q - (b_reward + (gamma ** b_steps) * b_q_)).abs()
 
@@ -170,7 +159,6 @@ def _generate(device, env, qnet,
 
     o = torch.from_numpy(o).to(device)
 
-    hidden = None
     epsilon = config.exploration_start_eps
     for n in range(1, number_timesteps + 1):
 
@@ -185,10 +173,7 @@ def _generate(device, env, qnet,
                 ob = o
 
                 # 1 x 3 x 3 x 8 x 8
-                if hidden is not None:
-                    q, hidden = qnet(ob, hidden)
-                else:
-                    q, hidden = qnet(ob)
+                q = qnet(ob)
                 # 1 x 3 x 5 or 1 x 3 x 5 x atom_num
 
                 a = q.argmax(1).cpu().tolist()
@@ -232,8 +217,6 @@ def _generate(device, env, qnet,
                 imitation_actions = find_path(env)
 
             o = torch.from_numpy(o).to(device)
-
-            hidden = None
             # if imitation:
             #     print(env.map)
             #     print(env.agents_pos)
@@ -263,4 +246,4 @@ if __name__ == '__main__':
     # print(a[[0,1],[0,1],[0,1]])
 
     env = Environment()
-    learn(env, 4000000)
+    learn(env, 5000000)

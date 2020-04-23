@@ -48,14 +48,14 @@ class Network(nn.Module):
 
         self.encoder = nn.Sequential(
             
-            nn.Conv2d(4, config.num_kernels, 3, 1, 1, bias=False),
+            nn.Conv2d(3+config.history_steps, config.num_kernels, 3, 1, 1, bias=False),
             nn.BatchNorm2d(config.num_kernels),
             nn.ReLU(True),
             
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
             ResBlock(config.num_kernels),
-            # ResBlock(config.num_kernels),
+            ResBlock(config.num_kernels),
 
             nn.Conv2d(config.num_kernels, 16, 1, 1, bias=False),
             nn.BatchNorm2d(16),
@@ -70,8 +70,6 @@ class Network(nn.Module):
             nn.ReLU(True),
         )
 
-        # self.gru = nn.GRUCell(16*config.map_size[0]*config.map_size[1], config.latent_dim)
-
         self.adv = nn.Linear(config.latent_dim, config.action_space)
 
         self.state = nn.Linear(config.latent_dim, 1)
@@ -82,16 +80,11 @@ class Network(nn.Module):
         #         nn.init.constant_(m.bias, 0)
 
     
-    def forward(self, x, hidden=None):
+    def forward(self, x):
 
         latent = self.encoder(x)
 
         latent = self.linear(latent)
-
-        # if hidden is not None:
-        #     hidden = self.gru(latent, hidden)
-        # else:
-        #     hidden = self.gru(latent)
         
         adv_val = self.adv(latent)
 
@@ -99,25 +92,5 @@ class Network(nn.Module):
 
         q_val = s_val + adv_val - adv_val.mean(1, keepdim=True)
 
-        return q_val, hidden
+        return q_val
     
-    # def bootstrap(self, x, steps=None, hidden=None):
-    #     # batch_size x steps x obs
-    #     step = x.size(1)
-
-    #     x = x.view(-1, 4, *config.map_size)
-
-    #     latent = self.encoder(x)
-
-    #     latent = latent.view(config.batch_size, step, 16*config.map_size[0]*config.map_size[1]).permute(1, 0, 2)
-
-    #     if hidden is not None:
-    #         for i in range(step): 
-    #             hidden = self.gru(latent[i], hidden)
-    #     else:
-            
-    #         hidden = self.gru(latent[0])
-    #         for i in range(1, step): 
-    #             hidden = self.gru(latent[i], hidden)
-
-    #     return hidden
