@@ -16,10 +16,13 @@ test_case = 200
 
 def create_test(num_agents):
 
+    name = './test{}.pkl'.format(num_agents) if num_agents != None else './test.pkl'
+
     tests = {'maps': [], 'agents': [], 'goals': [], 'opt_steps': []}
 
+    env = Environment(num_agents=num_agents)
+
     for _ in range(test_case):
-        env = Environment(num_agents=num_agents)
         tests['maps'].append(np.copy(env.map))
         tests['agents'].append(np.copy(env.agents_pos))
         tests['goals'].append(np.copy(env.goals_pos))
@@ -34,7 +37,9 @@ def create_test(num_agents):
 
         tests['opt_steps'].append(len(actions))
 
-    with open('./test{}.pkl'.format(env.num_agents), 'wb') as f:
+        env.reset()
+
+    with open(name, 'wb') as f:
         pickle.dump(tests, f)
 
 
@@ -142,7 +147,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='test MAPF model')
 
     parser.add_argument('--mode', type=str, choices=['test', 'create'], default='test', help='create test set or run test set')
-    parser.add_argument('--number', type=int, default=config.num_agents, help='number of agents in environment')
+    parser.add_argument('--number', type=int, default=None, help='number of agents in environment')
 
     args = parser.parse_args()
 
