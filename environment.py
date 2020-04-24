@@ -68,14 +68,21 @@ def map_partition(map):
 
 
 class Environment:
-    def __init__(self, num_agents=config.num_agents, map_size=config.map_size):
+    def __init__(self, num_agents=None):
         '''
         self.map:
             0 = empty
             1 = obstacle
         '''
-        self.num_agents = random.randint(2, 4)
-        self.map_size = map_size
+
+        if num_agents == None:
+            self.random_agents = True
+            self.num_agents = random.randint(2, 4)
+        else:
+            self.random_agents = False
+            self.num_agents = num_agents
+
+        self.map_size = config.map_size
         self.obstacle_density = random.choice(config.obstacle_density)
         self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
         partition_list = map_partition(self.map)
@@ -121,8 +128,8 @@ class Environment:
         self.history = [np.copy(self.agents_pos)]
 
     def reset(self):
-
-        self.num_agents = random.randint(2, 4)
+        if self.random_agents:
+            self.num_agents = random.randint(2, 4)
         self.obstacle_density = random.choice(config.obstacle_density)
         self.map = np.random.choice(2, self.map_size, p=[1-self.obstacle_density, self.obstacle_density]).astype(np.float32)
         partition_list = map_partition(self.map)
@@ -194,13 +201,6 @@ class Environment:
 
         assert len(actions) == self.num_agents, 'actions number' + str(actions)
         # assert all([action_idx<config.action_space and action_idx>=0 for action_idx in actions]), 'action index out of range'
-        
-        if np.unique(self.agents_pos, axis=0).shape[0] < self.num_agents:
-            print(self.steps)
-            print(self.map)
-            print(self.agents_pos)
-            print(self.history[-2])
-            raise RuntimeError('unique')
 
 
         if np.array_equal(self.agents_pos[0], self.goals_pos[0]) and actions[0] != 0:
@@ -272,7 +272,7 @@ class Environment:
 
                     check_id.remove(agent_id)
                     check_id.remove(target_agent_id)
-        back = check_id.copy()
+
         flag = False
         while not flag:
             
