@@ -48,7 +48,7 @@ class Network(nn.Module):
 
         self.encoder = nn.Sequential(
             
-            nn.Conv2d(3+config.history_steps, config.num_kernels, 3, 1, 1, bias=False),
+            nn.Conv2d(4+config.history_steps, config.num_kernels, 3, 1, 1, bias=False),
             nn.BatchNorm2d(config.num_kernels),
             nn.ReLU(True),
             
@@ -69,7 +69,7 @@ class Network(nn.Module):
         self.linear = nn.Sequential(
             nn.Linear(16*config.map_size[0]*config.map_size[1], config.latent_dim),
             nn.ReLU(True),
-            nn.Linear(config.latent_dim, config.latent_dim),
+            nn.Linear(config.latent_dim, config.latent_dim), 
             nn.ReLU(True),
         )
 

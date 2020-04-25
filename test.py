@@ -6,13 +6,15 @@ import config
 from search import find_path
 import pickle
 import os
+import matplotlib as mpl
+mpl.use('TkAgg') 
 import matplotlib.pyplot as plt
 import random
 import argparse
 torch.manual_seed(0)
 np.random.seed(0)
 random.seed(0)
-test_case = 200
+test_num = 200
 
 def create_test(num_agents):
 
@@ -22,7 +24,7 @@ def create_test(num_agents):
 
     env = Environment(num_agents=num_agents)
 
-    for _ in range(test_case):
+    for _ in range(test_num):
         tests['maps'].append(np.copy(env.map))
         tests['agents'].append(np.copy(env.agents_pos))
         tests['goals'].append(np.copy(env.goals_pos))
@@ -47,39 +49,33 @@ def test_model(num_agents):
 
 
     network = Network(config.dueling)
+    state_dict = torch.load('./model.pth')
+    network.load_state_dict(state_dict)
+    network.eval()
+    test_cases = ['test.pkl', 'test2.pkl', 'test3.pkl', 'test4.pkl', 'test5.pkl']
 
+    x = [i for i in range(2,6)]
+    finish_rate = []
+    optimal_rate = []
 
-    with open('./test{}.pkl'.format(num_agents), 'rb') as f:
-        tests = pickle.load(f)
+    for test_case in test_cases:
 
-    checkpoint = config.save_interval * 82
-    
-    x = []
-    y1 = []
-    y2 = []
-
-    while os.path.exists('./models/'+str(checkpoint)+'.pth'):
-
-        # print('true')
-        state_dict = torch.load('./models/'+str(checkpoint)+'.pth')
-        network.load_state_dict(state_dict)
-        network.eval()
+        with open(test_case, 'rb') as f:
+            tests = pickle.load(f)
 
 
         env = Environment()
-        case = 91
+        case = 1
         show = True
-        show_steps = 40
-        sum_reward = 0
+        show_steps = 20
         fail = 0
         optimal = 0
 
-        for i in range(200):
+        for i in range(test_num):
             env.load(tests['maps'][i], tests['agents'][i], tests['goals'][i])
             
             done = [False for _ in range(env.num_agents)]
 
-            round_reward = 0
             while False in done and env.steps<config.max_steps:
                 if i == case and show and env.steps < show_steps:
                     env.render()
@@ -105,12 +101,10 @@ def test_model(num_agents):
                     if done[j]:
                         action[j] = 0
 
-                obs, reward, done, _ = env.step(action)
+                obs, _, done, _ = env.step(action)
                 # print(done)
 
-                round_reward += sum(reward) / env.num_agents
-            
-            sum_reward += round_reward
+
 
             if not np.array_equal(env.agents_pos, env.goals_pos):
                 fail += 1
@@ -122,24 +116,36 @@ def test_model(num_agents):
 
             if i == case and show:
                 env.close()
+        
+        f_rate = (test_num-fail)/test_num
+        o_rate = optimal/test_num
 
-        sum_reward /= test_case
+        print('--------------{}---------------'.format(test_case))
+        print('finish: %.4f' %f_rate)
+        print('optimal: %.4f' %o_rate)
 
-        print('---------checkpoint '+str(checkpoint)+'---------------')
-        print('test score: %.3f' %sum_reward)
-        print('fail: %d' %fail)
-        print('optimal: %d' %optimal)
+        if test_case != 'test.pkl':
+            finish_rate.append(f_rate)
+            optimal_rate.append(o_rate)
         # print('best score: %.3f' %(sum(tests['rewards'])/test_case))
 
         # x.append(checkpoint)
         # y1.append(sum_reward)
         # y2.append(sum(tests['rewards'])/test_case)
-        checkpoint += config.save_interval
     
     # plt.plot(x, y1, 'b-')
     # plt.plot(x, y2, 'g-')
     # plt.show()
+    # plt.title(config.env_name)
+    plt.xlabel('number of agents')
+    plt.ylabel('percentage')
 
+    plt.plot(x, finish_rate, label='finish_rate')
+    plt.plot(x, optimal_rate, label='optimal_rate')
+    plt.xticks(range(2,6))
+    
+    plt.legend()
+    plt.show()
 
     
 

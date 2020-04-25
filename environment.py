@@ -182,7 +182,7 @@ class Environment:
         self.agents_pos = np.copy(agents_pos)
         self.goals_pos = np.copy(goals_pos)
 
-        assert agents_pos.shape[0] == self.num_agents
+        self.num_agents = agents_pos.shape[0]
 
         self.history = [np.copy(self.agents_pos)]
         
@@ -341,18 +341,23 @@ class Environment:
 
 
     def observe(self):
-        obs = np.zeros((self.num_agents, 3+config.history_steps, self.map_size[0], self.map_size[1]), dtype=np.float32)
+        obs = np.zeros((self.num_agents, 4+config.history_steps, self.map_size[0], self.map_size[1]), dtype=np.float32)
         for i in range(self.num_agents):
             obs[i,0][tuple(self.agents_pos[i])] = 1
 
             obs[i,1][tuple(self.goals_pos[i])] = 1
 
+            # trajectory of other agents
             other_agents = [id for id in range(self.num_agents) if id != i]
             for step in range(config.history_steps):
                 for id in other_agents:
                     obs[i,1+config.history_steps-step][tuple(self.history[max(self.steps-step, 0)][id])] = 1
 
-            obs[i,2+config.history_steps,:,:] = np.copy(self.map==0)
+            # goal's positions of other agents
+            for id in other_agents:
+                obs[i,2+config.history_steps][tuple(self.goals_pos[id])] = 1
+
+            obs[i,3+config.history_steps,:,:] = np.copy(self.map==0)
 
         return obs
 

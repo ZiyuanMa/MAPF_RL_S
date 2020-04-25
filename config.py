@@ -1,7 +1,7 @@
 # environment setting
 map_size = (9, 9)
 num_agents = 2
-obstacle_density = (0.1, 0.2, 0.2, 0.3, 0.3, 0.3, 0.4, 0.4)
+obstacle_density = (0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3, 0.4, 0.4)
 action_space = 5
 obs_dimension = 4
 max_steps = 80
@@ -39,6 +39,6 @@ prioritized_replay_alpha = 0.6
 prioritized_replay_beta0 = 0.4
 dueling = True
 
-imitation_ratio = 0.25
+imitation_ratio = 0.1
 
 history_steps = 3
